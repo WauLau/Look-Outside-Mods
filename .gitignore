@@ -14,6 +14,12 @@
 
 # Unused files
 *
+
+# Project Files
 !/js
 !/js/plugins*
 !/js/plugins/WauLau*
+
+!claude.md
+
+!/prettier
