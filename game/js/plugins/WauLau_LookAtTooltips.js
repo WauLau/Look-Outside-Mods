@@ -1,7 +1,7 @@
 /*:
  * @target MZ
  * @author WauLau (based on GBCCoffee_StateTooltips by coffeenahc, https://coffeenahc.itch.io/)
- * @plugindesc (v2.1) Popup tooltip when hovering a state icon, or a weapon/armor row in the item, equip, or shop screens, with JSON-driven text, stat expressions, bold/italic and color codes.
+ * @plugindesc (v2.2) Popup tooltip when hovering a state icon, or a weapon/armor row in the item, equip, or shop screens, with JSON-driven text, stat expressions, bold/italic and color codes. Also supports gamepad browsing for both.
  *
  * @help
  * ======================================================================================
@@ -53,6 +53,21 @@
  * Same JSON string rules as the states file above. If an item has no entry
  * there, its database "description" field is used instead, so items that
  * already have one written don't need to be duplicated into this file.
+ *
+ * 4.) Gamepad/controller support:
+ * The Gamepad Toggle Button below turns on tooltip browsing without a mouse.
+ * What it shows depends on what's focused when you press it:
+ *   - If an item/equip/shop list currently has the cursor, the tooltip
+ *     follows whichever row that list's own cursor is on - just move the
+ *     cursor as normal, no extra buttons needed for this case.
+ *   - Otherwise, it cycles through every state/buff-bearing battler on
+ *     screen (same as hovering their icons with a mouse), stepped with the
+ *     Prev/Next buttons below.
+ * Pressing the toggle button again turns it off. It also turns itself off
+ * automatically the moment whatever it was showing stops being on screen -
+ * e.g. opening the skill/item list in battle, or moving to a different
+ * screen that closes the window a tooltip was anchored to - so it can't get
+ * stuck showing on top of whatever opens next.
  *
  * Escape codes recognized inside tooltip text:
  *   \C[x]           - change text color (0-31)
@@ -161,7 +176,7 @@
  *
  * @param gamepadPrevButton
  * @text Gamepad Previous Button Index
- * @desc Standard Gamepad API button index that selects the previous battler while tooltip browsing is on. Default 6 = Left Trigger.
+ * @desc Standard Gamepad API button index that selects the previous battler while browsing state/buff tooltips. Unused while an item list has the tooltip instead (its own cursor handles that). Default 6 = Left Trigger.
  * @type number
  * @min 0
  * @max 17
@@ -169,7 +184,7 @@
  *
  * @param gamepadNextButton
  * @text Gamepad Next Button Index
- * @desc Standard Gamepad API button index that selects the next battler while tooltip browsing is on. Default 7 = Right Trigger.
+ * @desc Standard Gamepad API button index that selects the next battler while browsing state/buff tooltips. Unused while an item list has the tooltip instead (its own cursor handles that). Default 7 = Right Trigger.
  * @type number
  * @min 0
  * @max 17
@@ -302,13 +317,23 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
 (() => {
   'use strict';
 
-  const pluginName = 'WauLau_StateTooltips';
+  // Must match this file's own registered plugin name in plugins.js (i.e.
+  // its filename) - PluginManager.parameters() looks parameters up by that
+  // name, case-insensitively, against enabled plugins only. This has been
+  // renamed twice (WauLau_StateTooltips -> MOD_WauLau_LookAtTooltips ->
+  // WauLau_LookAtTooltips) without updating this constant to match, so the
+  // lookup silently returned {} the whole time - every param below fell
+  // back to its default except offsetX/offsetY, which had none and turned
+  // into NaN, which is why mouse-driven tooltips positioned themselves at
+  // (NaN, NaN) - invisible - while gamepad-driven ones (positioned from an
+  // anchor point, never touching offsetX/offsetY) were unaffected.
+  const pluginName = 'WauLau_LookAtTooltips';
   const params = PluginManager.parameters(pluginName);
 
   const WauLau = {};
   WauLau.StateTooltips = {};
-  WauLau.StateTooltips.offsetX = parseInt(params.offsetX);
-  WauLau.StateTooltips.offsetY = parseInt(params.offsetY);
+  WauLau.StateTooltips.offsetX = parseInt(params.offsetX) || 0;
+  WauLau.StateTooltips.offsetY = parseInt(params.offsetY) || 0;
   WauLau.StateTooltips.paramNames = [
     'hp',
     'mp',
@@ -476,28 +501,74 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
 
   // Gamepad tooltip-browsing state. Only one scene is ever active at a time,
   // so a single shared object is fine - it gets reset whenever a scene that
-  // supports tooltips is (re)created.
-  const gamepadTooltip = { active: false, battlers: [], index: 0 };
+  // supports tooltips is (re)created. `mode` distinguishes cycling through
+  // battlers' state/buff icons (no native cursor to follow, so Prev/Next
+  // steps through them by hand) from tracking whichever row is currently
+  // selected in an item/equip/shop list (which already has its own cursor,
+  // so there's nothing to step - just mirror whatever's selected).
+  const gamepadTooltip = {
+    active: false,
+    mode: null,
+    battlers: [],
+    index: 0,
+    itemWindow: null,
+    // Tracked separately from the mouse-hover system's own
+    // this._tooltipHoveredItem (see updateGamepadItemTooltip and
+    // updateItemTooltipHover below) - the two used to share that field, but
+    // that meant the mouse and gamepad could each overwrite the other's
+    // notion of "what's currently shown" just by coincidentally landing on
+    // the same/different row, with no real input from the player driving
+    // it either way.
+    lastItem: null,
+  };
+
+  function resetGamepadTooltip() {
+    gamepadTooltip.active = false;
+    gamepadTooltip.mode = null;
+    gamepadTooltip.itemWindow = null;
+    gamepadTooltip.lastItem = null;
+  }
+
+  // Shared "is this window's content actually the thing on screen right
+  // now" check, used everywhere a stale reference to a window could
+  // otherwise keep a tooltip alive after that window stopped being the
+  // relevant one - e.g. Scene_Battle.commandSkill/commandItem
+  // (rmmz_scenes.js) call this._statusWindow.hide() when the skill/item
+  // list opens on top of it, but never clear its _tooltipIconRects, so
+  // without this check a battler tooltip anchored to that window would
+  // otherwise keep showing right through the new list.
+  function isWindowUsableForTooltip(win) {
+    if (!win.visible) return false;
+    if (win.isOpen && !win.isOpen()) return false;
+    return true;
+  }
 
   // Menu case: any Window_StatusBase-derived window (Window_MenuStatus,
   // Window_Status, ...) already records _tooltipIconRects per actor as a
   // side effect of drawing (added for the menu hover fix) - reuse that as
   // the list of "battlers with a tooltip available" instead of rediscovering
   // it a different way. Battle case: just every party/troop member with an
-  // active icon.
+  // active icon, minus anyone whose only anchor (see
+  // battlerTooltipStillValid below) isn't currently showing.
   function collectTooltipBattlers(scene) {
     if (scene instanceof Scene_Battle) {
       return $gameParty
         .battleMembers()
         .concat($gameTroop.members())
-        .filter((b) => b.allIcons().length > 0);
+        .filter(
+          (b) => b.allIcons().length > 0 && battlerTooltipStillValid(scene, b),
+        );
     }
     const battlers = [];
     const seen = new Set();
     const layer = scene._windowLayer;
     if (layer) {
       for (const child of layer.children) {
-        if (child instanceof Window_StatusBase && child._tooltipIconRects) {
+        if (
+          child instanceof Window_StatusBase &&
+          child._tooltipIconRects &&
+          isWindowUsableForTooltip(child)
+        ) {
           for (const rects of Object.values(child._tooltipIconRects)) {
             for (const rect of rects) {
               if (
@@ -515,22 +586,59 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return battlers;
   }
 
-  // Screen position to anchor the tooltip to for a given battler, mirroring
-  // where mouse hover would already be pointing: the enemy's own icon sprite
-  // in battle, or the first recorded icon rect in whichever menu window is
-  // showing that battler. Returns null if neither can be found (scene layout
-  // this project doesn't use yet), in which case the caller falls back to a
-  // fixed position rather than crashing.
+  // Per-frame validity gate for gamepad battler browsing (see
+  // isWindowUsableForTooltip above for why this is needed): true only while
+  // the battler's icons are still being shown by something currently on
+  // screen - the enemy's own sprite in battle, or whichever
+  // Window_StatusBase last drew that actor's icons, in every other case
+  // (including actors in battle, whose icons only ever come from
+  // Window_BattleStatus).
+  function battlerTooltipStillValid(scene, battler) {
+    if (!battler) return false;
+    if (scene instanceof Scene_Battle && battler.isEnemy && battler.isEnemy()) {
+      const spriteset = scene._spriteset;
+      const enemySprites = spriteset && spriteset._enemySprites;
+      const enemySprite =
+        enemySprites && enemySprites.find((s) => s._battler === battler);
+      return !!(enemySprite && enemySprite.visible);
+    }
+    const layer = scene._windowLayer;
+    if (!layer) return false;
+    const actorId =
+      battler.isActor && battler.isActor() ? battler.actorId() : null;
+    for (const child of layer.children) {
+      if (child instanceof Window_StatusBase && child._tooltipIconRects) {
+        const rects = child._tooltipIconRects[actorId];
+        if (rects && rects[0]) {
+          return isWindowUsableForTooltip(child);
+        }
+      }
+    }
+    return false;
+  }
+
+  // Screen position (plus size, so positionTooltipAt can flip above/below
+  // it to stay on screen) to anchor the tooltip to for a given battler,
+  // mirroring where mouse hover would already be pointing: the enemy's own
+  // icon sprite in battle, or the first recorded icon rect in whichever
+  // menu window is showing that battler. Returns null if neither can be
+  // found (scene layout this project doesn't use yet), in which case the
+  // caller falls back to a fixed position rather than crashing.
   function anchorPositionFor(scene, battler) {
     if (scene instanceof Scene_Battle && battler.isEnemy && battler.isEnemy()) {
       const spriteset = scene._spriteset;
       const enemySprites = spriteset && spriteset._enemySprites;
       const enemySprite =
         enemySprites && enemySprites.find((s) => s._battler === battler);
-      if (enemySprite && enemySprite._stateIconSprite) {
-        return enemySprite._stateIconSprite.worldTransform.apply(
-          new Point(0, 0),
-        );
+      const iconSprite = enemySprite && enemySprite._stateIconSprite;
+      if (iconSprite) {
+        const point = iconSprite.worldTransform.apply(new Point(0, 0));
+        return {
+          x: point.x,
+          y: point.y,
+          width: iconSprite.width,
+          height: iconSprite.height,
+        };
       }
     }
     const layer = scene._windowLayer;
@@ -538,12 +646,22 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       const actorId =
         battler.isActor && battler.isActor() ? battler.actorId() : null;
       for (const child of layer.children) {
-        if (child instanceof Window_StatusBase && child._tooltipIconRects) {
+        if (
+          child instanceof Window_StatusBase &&
+          child._tooltipIconRects &&
+          isWindowUsableForTooltip(child)
+        ) {
           const rects = child._tooltipIconRects[actorId];
           if (rects && rects[0] && child._contentsSprite) {
-            return child._contentsSprite.worldTransform.apply(
+            const point = child._contentsSprite.worldTransform.apply(
               new Point(rects[0].x, rects[0].y),
             );
+            return {
+              x: point.x,
+              y: point.y,
+              width: rects[0].width,
+              height: rects[0].height,
+            };
           }
         }
       }
@@ -570,45 +688,87 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       this.updateGamepadTooltip();
       this.updateItemTooltipHover();
 
+      // The cursor is a point, not a rect, but positionTooltipAt only needs
+      // width/height to know how far past the anchor the tooltip's near
+      // edge would sit - passing 0 for both means "flip above/below right
+      // at the cursor" instead of "right at the far edge of an icon/row".
       if (this._stateTooltip.visible && !gamepadTooltip.active) {
-        this._stateTooltip.x = TouchInput.x + WauLau.StateTooltips.offsetX;
-        this._stateTooltip.y = TouchInput.y + WauLau.StateTooltips.offsetY;
-
-        this._stateTooltip.x = Math.max(
-          0,
-          Math.min(
-            this._stateTooltip.x,
-            Graphics.boxWidth - this._stateTooltip.width,
-          ),
-        );
-        this._stateTooltip.y = Math.max(
-          0,
-          Math.min(
-            this._stateTooltip.y,
-            Graphics.boxHeight - this._stateTooltip.height,
-          ),
-        );
+        this.positionTooltipAt({
+          x: TouchInput.x + WauLau.StateTooltips.offsetX,
+          y: TouchInput.y + WauLau.StateTooltips.offsetY,
+          width: 0,
+          height: 0,
+        });
       }
+    };
+
+    // ToggleTooltip prefers item mode: if an item/equip/shop list currently
+    // has the cursor (i.e. is the active, focused window), that's a much
+    // stronger "this is what the player is looking at" signal than the
+    // battler-icon browsing below, and unlike state/buff icons an item row
+    // already has its own cursor to track, so there's nothing to step
+    // through by hand - Prev/Next simply don't apply in this mode. Falls
+    // back to the original battler-cycling behavior when no such list is
+    // focused (e.g. the party overview screen).
+    sceneProto.activateGamepadTooltip = function () {
+      const itemWindow = findActiveItemWindow(this);
+      if (itemWindow) {
+        gamepadTooltip.active = true;
+        gamepadTooltip.mode = 'item';
+        gamepadTooltip.itemWindow = itemWindow;
+        this.updateGamepadItemTooltip();
+        return;
+      }
+      const battlers = collectTooltipBattlers(this);
+      if (battlers.length > 0) {
+        gamepadTooltip.active = true;
+        gamepadTooltip.mode = 'battler';
+        gamepadTooltip.battlers = battlers;
+        gamepadTooltip.index = 0;
+        this.selectGamepadTooltipBattler();
+      }
+    };
+
+    sceneProto.deactivateGamepadTooltip = function () {
+      resetGamepadTooltip();
+      this._tooltipItemMode = false;
+      this._tooltipHoveredItem = null;
+      this.hideTooltip();
     };
 
     sceneProto.updateGamepadTooltip = function () {
       if (Input.isTriggered('ToggleTooltip')) {
         if (gamepadTooltip.active) {
-          gamepadTooltip.active = false;
-          this.hideTooltip();
+          this.deactivateGamepadTooltip();
         } else {
-          const battlers = collectTooltipBattlers(this);
-          if (battlers.length > 0) {
-            gamepadTooltip.active = true;
-            gamepadTooltip.battlers = battlers;
-            gamepadTooltip.index = 0;
-            this.selectGamepadTooltipBattler();
-          }
+          this.activateGamepadTooltip();
         }
         return;
       }
 
       if (!gamepadTooltip.active) return;
+
+      if (gamepadTooltip.mode === 'item') {
+        this.updateGamepadItemTooltip();
+        return;
+      }
+
+      // Re-checked every frame (not just on toggle/Prev/Next) so that a
+      // battler's tooltip gets dismissed the moment whatever was showing its
+      // icons stops being the thing on screen - e.g. opening the skill/item
+      // list in battle hides the party status window (Scene_Battle.
+      // commandSkill/commandItem in rmmz_scenes.js) without this plugin ever
+      // being told, so without this check the tooltip would otherwise keep
+      // showing right on top of that new list.
+      if (
+        !battlerTooltipStillValid(
+          this,
+          gamepadTooltip.battlers[gamepadTooltip.index],
+        )
+      ) {
+        this.deactivateGamepadTooltip();
+        return;
+      }
 
       if (Input.isTriggered('TooltipNext')) {
         gamepadTooltip.index =
@@ -622,26 +782,83 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       }
     };
 
+    // Shared by selectGamepadTooltipBattler, updateGamepadItemTooltip, and
+    // the mouse-follow positioning in update() above: sits the tooltip just
+    // below the anchor (an icon, a list row, or the cursor - anything with
+    // an {x, y, width, height}), flipping to just above it instead when
+    // there isn't enough room below, so it never gets cut off the bottom of
+    // the screen. Falls back to screen-center when no anchor was found.
+    const TOOLTIP_ANCHOR_GAP_Y = 4;
+    const TOOLTIP_ANCHOR_GAP_X = -2;
+    sceneProto.positionTooltipAt = function (anchor) {
+      const tw = this._stateTooltip.width;
+      const th = this._stateTooltip.height;
+
+      let x, y;
+      if (anchor) {
+        x = anchor.x + TOOLTIP_ANCHOR_GAP_X;
+        const below = anchor.y + (anchor.height || 0) - TOOLTIP_ANCHOR_GAP_Y;
+        const above = anchor.y + TOOLTIP_ANCHOR_GAP_Y - th;
+        if (below + th <= Graphics.boxHeight) {
+          y = below;
+        } else if (above >= 0) {
+          y = above;
+        } else {
+          // Neither side fully fits (a very short/narrow screen) - below is
+          // at least closest to the anchor, so clamp that instead of
+          // picking one side arbitrarily.
+          y =
+            Math.abs(Graphics.boxHeight - (below + th)) > Math.abs(above) ?
+              above
+            : below;
+        }
+      } else {
+        x = Graphics.boxWidth / 2;
+        y = Graphics.boxHeight / 2;
+      }
+
+      this._stateTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw));
+      this._stateTooltip.y = Math.max(0, Math.min(y, Graphics.boxHeight - th));
+    };
+
     sceneProto.selectGamepadTooltipBattler = function () {
       const battler = gamepadTooltip.battlers[gamepadTooltip.index];
       this.showTooltip(battler);
-      const anchor = anchorPositionFor(this, battler);
-      const x = anchor ? anchor.x : Graphics.boxWidth / 2;
-      const y = anchor ? anchor.y : Graphics.boxHeight / 2;
-      this._stateTooltip.x = Math.max(
-        0,
-        Math.min(x, Graphics.boxWidth - this._stateTooltip.width),
-      );
-      this._stateTooltip.y = Math.max(
-        0,
-        Math.min(y, Graphics.boxHeight - this._stateTooltip.height),
-      );
+      this.positionTooltipAt(anchorPositionFor(this, battler));
+    };
+
+    // Mirrors whichever row gamepadTooltip.itemWindow's own cursor is
+    // currently on - no Prev/Next handling needed since normal list
+    // navigation already moves that cursor. Bails out (same as toggling
+    // tooltip browsing off) the moment that window stops being the active,
+    // on-screen list, which is what makes opening a different window on top
+    // of it (or closing back out of it) correctly dismiss the tooltip
+    // instead of leaving it stuck on the last selected row.
+    sceneProto.updateGamepadItemTooltip = function () {
+      const win = gamepadTooltip.itemWindow;
+      if (!win || !win.active || !isWindowUsableForTooltip(win)) {
+        this.deactivateGamepadTooltip();
+        return;
+      }
+
+      const index = win.index();
+      const item = index >= 0 ? win.itemAt(index) : null;
+      if (item) {
+        if (item !== gamepadTooltip.lastItem) {
+          gamepadTooltip.lastItem = item;
+          this.showItemTooltip(item);
+        }
+        this.positionTooltipAt(anchorPositionForItemRow(win, index));
+      } else if (gamepadTooltip.lastItem) {
+        gamepadTooltip.lastItem = null;
+        this.hideTooltip();
+      }
     };
 
     sceneProto.createTooltipWindow = function () {
       this._stateTooltip = new Window_StateTooltip();
       this.addChild(this._stateTooltip);
-      gamepadTooltip.active = false;
+      resetGamepadTooltip();
     };
 
     sceneProto.showTooltip = function (battler) {
@@ -685,21 +902,44 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     //
     // Only touches item-mode tooltips (guarded by _tooltipItemMode) so this
     // never fights the separate state/buff icon-hover tooltip system above.
+    //
+    // The mouse takes over from gamepad browsing only once it actually
+    // lands on something real - both halves matter:
+    //   - "actually moved" (TouchInput.isMoved()/isHovered(), a one-frame
+    //     pulse tied to real mouse-move events) so a mouse that's merely
+    //     resting somewhere on the list - coincidentally over some row,
+    //     while the player is exclusively driving the gamepad - can't fight
+    //     whatever row the gamepad has selected just by sitting there.
+    //   - "landed on an item" so a real move that ends up over empty space
+    //     doesn't cancel gamepad browsing for nothing, leaving no tooltip
+    //     at all where a perfectly good one was already showing (this was
+    //     the actual cause of an earlier version of this fix hiding the
+    //     tooltip on any mouse movement without ever showing a new one).
+    // Only once both are true does the mouse cancel gamepad mode, right as
+    // it takes over showing the new item below - never as a separate step,
+    // so there's no gap where gamepad mode is off but nothing has replaced
+    // what it was showing.
     sceneProto.updateItemTooltipHover = function () {
-      if (gamepadTooltip.active) return;
+      const mouseActive = TouchInput.isMoved() || TouchInput.isHovered();
 
       let hoveredItem = null;
       const layer = this._windowLayer;
       if (layer) {
         for (const child of layer.children) {
-          if (!isItemHoverWindow(child) || !child.visible) continue;
-          if (child.isOpen && !child.isOpen()) continue;
+          if (!isItemHoverWindow(child) || !isWindowUsableForTooltip(child)) {
+            continue;
+          }
           const index = child.hitIndex();
           if (index >= 0) {
             const item = child.itemAt(index);
             if (item) hoveredItem = item;
           }
         }
+      }
+
+      if (gamepadTooltip.active) {
+        if (!mouseActive || !hoveredItem) return;
+        resetGamepadTooltip();
       }
 
       if (hoveredItem) {
@@ -729,6 +969,48 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       win instanceof Window_EquipSlot ||
       win instanceof Window_ShopBuy
     );
+  }
+
+  // Whichever item/equip/shop list currently has the cursor, if any - the
+  // one gamepad tooltip browsing should track instead of cycling battlers.
+  // Requires an actual selection (index() >= 0), not just visibility, since
+  // e.g. a list that's on screen but not yet interacted with can still
+  // report active === true right after being activated with nothing
+  // selected. At most one such window is ever active at a time (that's how
+  // RPG Maker MZ's own window focus works - activating one always
+  // deactivates whatever had focus before), so the first match wins.
+  function findActiveItemWindow(scene) {
+    const layer = scene._windowLayer;
+    if (!layer) return null;
+    for (const child of layer.children) {
+      if (
+        isItemHoverWindow(child) &&
+        child.active &&
+        isWindowUsableForTooltip(child) &&
+        child.index() >= 0
+      ) {
+        return child;
+      }
+    }
+    return null;
+  }
+
+  // Same worldTransform trick anchorPositionFor uses for menu icon rects,
+  // just against a list row's own itemRect() instead of a hand-tracked
+  // rect - every Window_Selectable already knows exactly where its rows are
+  // drawn, so there's no need to record anything extra the way
+  // Window_StatusBase.drawActorIcons does for icons.
+  function anchorPositionForItemRow(win, index) {
+    if (!win._contentsSprite) return null;
+    const rect = win.itemRect(index);
+    // Top-left, matching anchorPositionFor's convention - positionTooltipAt
+    // adds width/height itself when checking whether "below" fits, so this
+    // has to be the near edge, not the far one, or it'd double-count the
+    // row's height and end up positioned a full row too low.
+    const point = win._contentsSprite.worldTransform.apply(
+      new Point(rect.x, rect.y),
+    );
+    return { x: point.x, y: point.y, width: rect.width, height: rect.height };
   }
 
   installTooltipSupport(Scene_Battle.prototype, 'createAllWindows');
@@ -830,6 +1112,19 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
 
   Window_StatusBase.prototype.updateTooltipIconHover = function () {
     if (!this._tooltipIconRects || !sceneHasTooltipSupport()) return;
+    // A window can go from visible to hidden without ever losing the mouse
+    // (e.g. Scene_Battle.commandSkill/commandItem in rmmz_scenes.js hides
+    // the party status window when the skill/item list opens) - without
+    // this check, the stale TouchInput position from before it was hidden
+    // would keep matching the last-hovered rect and the tooltip would show
+    // right through the new window on top of it.
+    if (!isWindowUsableForTooltip(this)) {
+      if (this._tooltipHoveredBattler) {
+        this._tooltipHoveredBattler = null;
+        SceneManager._scene.hideTooltip();
+      }
+      return;
+    }
 
     const touchPos = new Point(TouchInput.x, TouchInput.y);
     const localPos = this._contentsSprite.worldTransform.applyInverse(touchPos);
@@ -852,7 +1147,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
 
     if (hoveredBattler !== this._tooltipHoveredBattler) {
       this._tooltipHoveredBattler = hoveredBattler;
-      gamepadTooltip.active = false;
+      resetGamepadTooltip();
       if (hoveredBattler && hoveredBattler.allIcons().length > 0) {
         SceneManager._scene.showTooltip(hoveredBattler);
       } else {
@@ -920,7 +1215,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
   Sprite_StateIcon.prototype.onMouseEnter = function () {
     if (sceneHasTooltipSupport()) {
       if (this._battler && this._battler.allIcons().length > 0) {
-        gamepadTooltip.active = false;
+        resetGamepadTooltip();
         SceneManager._scene.showTooltip(this._battler);
       }
     }
@@ -1411,9 +1706,27 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return text.replace(/^\s*\[[^\]]*\]\s*/, '');
   }
   function grabLeadingBracketNoteForItem(text) {
-    const type = text.description.match(/\[(?<name>\w*)\]/);
-    if (type === null) return `\\ST[1]Item\\ST[0]`;
-    return `\\ST[1]${type.groups.name} Item\\ST[0]`;
+    const metaObj = text.meta;
+    let isMetaTag = false;
+    for (const [key, value] of Object.entries(metaObj)) {
+      if (
+        key.localeCompare(`WD_Items`, undefined, { sensitivity: 'base' }) === 0
+      )
+        isMetaTag = true;
+      else isMetaTag = false;
+      if (isMetaTag) {
+        const match = value.match(/\w+/);
+        if (match === null) {
+          const type = text.description.match(/\[(?<name>\w*)\]/);
+          if (type === null) return `\\ST[1]Item\\ST[0]`;
+          return `\\ST[1]${type.groups.name} Item\\ST[0]`;
+        }
+        const capitalizedMatch =
+          String(match).charAt(0).toUpperCase() + String(match).slice(1);
+        return `\\ST[1]${capitalizedMatch} Item\\ST[0]`;
+      }
+    }
+    return `\\ST[1]Item\\ST[0]`;
   }
 
   function itemTooltipFlavorText(kind, item) {
