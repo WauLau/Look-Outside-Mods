@@ -1,25 +1,31 @@
 # Unused folders
-/audio
-/css
-/data
-/effects
-/fonts
-/icon
-/img
-/lib
-/locales
-/movies
-/save
-/swiftshader
+game/audio
+game/css
+game/effects
+game/fonts
+game/icon
+game/img
+game/lib
+game/locales
+game/movies
+game/save
+game/swiftshader
 
 # Unused files
-*
+game/*
 
 # Project Files
-!/js
-!/js/plugins*
-!/js/plugins/WauLau*
+game/js/*
+!game/js
+!game/js/plugins.js
+game/js/plugins/*
+!game/js/plugins
+!game/js/plugins/WauLau*
+!game/js/plugins/MOD_*
 
-!claude.md
 
-!/prettier
+game/data/*
+!game/data
+!game/data/WauLau*
+
+
