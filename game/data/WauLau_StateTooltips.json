@@ -98,7 +98,7 @@
             "text": [
                 "\\B[1]Stunned:\\B[0] Cannot take any action",
                 "\\B[1]Lethargic:\\B[0] Evasion is 0",
-                "\\B[1]Immunity:\\B[0]: Immune to paralysis",
+                "\\B[1]Immunity:\\B[0] Immune to paralysis",
                 "\\TRT"
             ]
         },
@@ -206,7 +206,7 @@
             "text": [
                 "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
                 "\\B[1]Lucky:\\B[0] +{luk * 0.2} Luck",
-                "\\B[1]Removal:\\B[0]: End of battle",
+                "\\B[1]Removal:\\B[0] End of battle",
                 "\\TRT"
             ]
         },
@@ -716,7 +716,7 @@
         "115": {
             "name": "Copy Dad",
             "text": [
-                "User will copy the last move Sam made every turn, in addition to its regular action. The effect lasts 4-6 turns.",
+                "User will copy the last move Sam made every turn, in addition to its regular action.",
                 "\\TRT"
             ]
         },
@@ -730,8 +730,8 @@
         "117": {
             "name": "Freak Out",
             "text": [
-                "\\B[1]Haywire:\\B[0] Loses control and attacks random enemies.",
-                "\\B[1]Action Surge:\\B[0] Attack one extra time per turn.",
+                "\\B[1]Haywire:\\B[0] Cannot be controlled, and automatically takes the 'Attack' action against an enemy",
+                "\\B[1]Double strike:\\B[0] User attacks 2 times",
                 "\\B[1]Sharpshooter:\\B[0] +{cri * 0.15} Critical Hit rate",
                 "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack & +{batk * 0.25} Ballistics",
                 "\\B[1]Sharpshooter:\\B[0] +{cri * 0.15} Critical hit rate",
@@ -860,8 +860,8 @@
         "135": {
             "name": "Blood Madness",
             "text": [
-                "\\B[1]Haywire:\\B[0] Cannot be controlled, and attacks an enemy",
-                "\\B[1]Double strike:\\B[0] Attacks 2 times",
+                "\\B[1]Haywire:\\B[0] Cannot be controlled, and automatically takes the 'Attack' action against an enemy",
+                "\\B[1]Double strike:\\B[0] User attacks 2 times",
                 "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack",
                 "\\B[1]Frail:\\B[0] +50% Damage taken",
                 "\\TRT"
@@ -870,7 +870,7 @@
         "136": {
             "name": "Long Haul Flow",
             "text": [
-                "\\B[1]Haywire:\\B[0] Cannot be controlled, and attacks an enemy",
+                "\\B[1]Haywire:\\B[0] Cannot be controlled, and automatically takes the 'Attack' action against an enemy",
                 "\\B[1]Per Turn:\\B[0] Recover {mstm * 0.1} STM",
                 "\\TRT"
             ]
@@ -879,7 +879,7 @@
             "name": "Dungeon Dance",
             "text": [
                 "\\B[1]Retaliator:\\B[0] Always counterattack for free after being hit",
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\TRT"
             ]
         },
@@ -1068,7 +1068,7 @@
         "166": {
             "name": "Beastmode",
             "text": [
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\B[1]Bulwark:\\B[0] -50% Damage taken",
                 "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack",
                 "\\B[1]Quick:\\B[0] +{agi * 0.2} Agility",
@@ -1310,7 +1310,7 @@
         "204": {
             "name": "Demon Rage",
             "text": [
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
                 "\\B[1]Immune:\\B[0] User cannot be affected by Bleed3, Wither, Mutate, Insane, Unmade, or Assimilate",
                 "\\TRT"
@@ -1398,7 +1398,7 @@
         "219": {
             "name": "Double Time",
             "text": [
-                "\\B[1]Double Strike:\\B[0] Melee attacks hit 1 extra time.",
+                "\\B[1]Pummel:\\B[0] Each melee attack hits the target 1 additional times",
                 "\\B[1]Immune:\\B[0] User cannot be affected by Frozen",
                 "\\TRT"
             ]
@@ -1411,6 +1411,13 @@
                 "\\B[1]Quick:\\B[0] +{agi * 0.15} Agility",
                 "\\B[1]Lucky:\\B[0] +{luk * 0.15} Luck",
                 "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP",
+                "\\TRT"
+            ]
+        },
+        "223": {
+            "name": "Fidget Overdrive",
+            "text": [
+                "User can make up to 3 extra actions on their next turn.",
                 "\\TRT"
             ]
         },
@@ -1486,9 +1493,9 @@
         "234": {
             "name": "Royal Decree",
             "text": [
-                "\\B[1]Double strike:\\B[0] Melee attacks hit 2 times",
+                "\\B[1]Pummel:\\B[0] Each melee attack hits the target 2 additional times",
                 "\\B[1]Powerful:\\B[0] +{atk*0.5} Attack",
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\TRT"
             ]
         },
@@ -1650,6 +1657,12 @@
                 "\\B[1]Unlucky:\\B[0] -{luk * 0.2} Luck"
             ]
         },
+        "258": {
+            "name": "Indigo Mask",
+            "text": [
+                "\\B[1]Death Defy:\\B[0] If the user gets to 0 HP, the mask 'cracks' and heals the user 100% of HP. Afterward, the state 'Cracked Mask' is applied."
+            ]
+        },
         "259": {
             "name": "Wuss Out",
             "text": [
@@ -1726,7 +1739,7 @@
         "267": {
             "name": "Bloodlust X",
             "text": [
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\TRT"
             ]
         },
@@ -1946,8 +1959,8 @@
         "297": {
             "name": "glitch rage",
             "text": [
-                "Affected unit's melee attacks hit 2 extra times.",
-                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Double strike:\\B[0] User attacks 2 times",
+                "\\B[1]Livid:\\B[0] User can only take the 'Attack' action on its next turn.",
                 "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack",
                 "\\B[1]Exposed:\\B[0] -{def * 0.5} Defense",
                 "\\B[1]Weak:\\B[0] -{batk * 0.5} Ballistics",

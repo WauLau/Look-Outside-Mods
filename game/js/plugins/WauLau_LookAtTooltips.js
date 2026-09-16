@@ -153,6 +153,55 @@
  * @max 31
  * @default 0
  *
+ * @param labelColor
+ * @text Label/Inline-Header Color
+ * @desc Text color index (0-31, same as \C[x]) used for any labels.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 22
+ *
+ *
+ * @param titleColor
+ * @text Title Color
+ * @desc Text color index (0-31, same as \C[x]) used for any Titles.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 10
+ *
+ * @param descColor
+ * @text Description Color
+ * @desc Text color index (0-31, same as \C[x]) used for any Descriptions.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 26
+ *
+ * @param subtitleColor
+ * @text Subtitle Color
+ * @desc Text color index (0-31, same as \C[x]) used for any Subtitles.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 18
+ *
+ * @param inlineColor
+ * @text Inline Text Color
+ * @desc Text color index (0-31, same as \C[x]) used for any Inline Text.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 0
+ *
+ * @param statColor
+ * @text Stat Color
+ * @desc Text color index (0-31, same as \C[x]) used for any Stats calculated from Expressions.
+ * @type number
+ * @min 0
+ * @max 31
+ * @default 1
+ *
  * @param enemyPercentOnly
  * @text Enemy Tooltips: Percent Only
  * @desc If ON, {expr} on an enemy only shows a % (from a "stat * 0.05" style multiplier) instead of the real computed number, to avoid leaking enemy stats.
@@ -317,16 +366,16 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
 (() => {
   'use strict';
 
-  // Must match this file's own registered plugin name in plugins.js (i.e.
-  // its filename) - PluginManager.parameters() looks parameters up by that
-  // name, case-insensitively, against enabled plugins only. This has been
-  // renamed twice (WauLau_StateTooltips -> MOD_WauLau_LookAtTooltips ->
-  // WauLau_LookAtTooltips) without updating this constant to match, so the
-  // lookup silently returned {} the whole time - every param below fell
-  // back to its default except offsetX/offsetY, which had none and turned
-  // into NaN, which is why mouse-driven tooltips positioned themselves at
-  // (NaN, NaN) - invisible - while gamepad-driven ones (positioned from an
-  // anchor point, never touching offsetX/offsetY) were unaffected.
+  //============================================================================//
+  //                              PLUGIN SETUP                                  //
+  //============================================================================//
+
+  // IMPORTANT CALLOUT -----------------------------
+  // Must match this file's own registered plugin name in plugins.js
+  // (its filename).
+  //
+  // Setup plugin to work with RPGMaker MZ, including plugin definitions and
+  // Parameters
   const pluginName = 'WauLau_LookAtTooltips';
   const params = PluginManager.parameters(pluginName);
 
@@ -352,45 +401,43 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
   );
 
   const decimalPlaces = Number(params.decimalPlaces || 0);
-  const expressionColor = Number(params.expressionColor || 8);
-  const textColor = Number(params.textColor || 1);
+  const textColor = Number(params.textColor || 0);
   const boldColor = Number(params.boldColor || 0);
-  const labelColor = Number(params.accentColor || 22);
+  const labelColor = Number(params.labelColor || 22);
   const titleColor = Number(params.titleColor || 10);
   const descColor = Number(params.descColor || 26);
   const subtitleColor = Number(params.subtitleColor || 18);
-  const inlineColor = Number(params.inlineColor || 0);
+  const inlineColor = Number(params.inlineColor || 2);
   const statColor = Number(params.statColor || 1);
+  const boldOutlineColor = Number(params.boldOutlineColor || 12);
 
   const enemyPercentOnly = params.enemyPercentOnly !== 'false';
   const maxTooltipWidth = Number(params.maxWidth || 500);
 
-  // Buttons 6/7/8 (triggers + back/select) aren't used by the engine's own
-  // Input.gamepadMapper (js/rmmz_core.js:5727 only defines 0-5 and 12-15),
-  // so registering new symbols here is safe and doesn't collide with the
-  // menu's existing pageup/pagedown (LB/RB) tab-switching. This is dev-time
-  // configurable via these plugin parameters, not an in-game rebind menu -
-  // wiring into Mano_InputConfig's own rebind UI would mean hand-editing its
-  // fragile nested extendsMapper JSON, which risks breaking that plugin's
-  // whole config screen for a feature this self-contained doesn't need.
+  // Registers new gamepad symbols on buttons 6/7/8 (triggers + back/select),
+  // which the engine's own Input.gamepadMapper leaves unused. Configurable
+  // via plugin parameters only, not through an in-game rebind menu.
   Input.gamepadMapper[Number(params.gamepadToggleButton || 8)] =
     'ToggleTooltip';
   Input.gamepadMapper[Number(params.gamepadPrevButton || 6)] = 'TooltipPrev';
   Input.gamepadMapper[Number(params.gamepadNextButton || 7)] = 'TooltipNext';
 
+  /**
+   * Builds the tooltip body text for a state from data/WauLau_Tooltips.json.
+   * @param {RPG.State} state - database state object
+   * @param {Game_Battler} battler - battler the tooltip is being shown for
+   * @returns {string|null} formatted tooltip text, or null if the state has no JSON entry
+   */
   function stateTooltipText(state, battler) {
     const entry =
       $dataTooltips && $dataTooltips.states && $dataTooltips.states[state.id];
     if (!entry || !entry.text) return null;
     const rawText =
       Array.isArray(entry.text) ? entry.text.join('\n') : entry.text;
-    // Resolve {expression}s in the body ONLY, before the \{name\} header
-    // (which uses the engine's make-font-bigger/smaller codes, not our
-    // expression syntax) gets attached - otherwise the scanner below would
-    // also see that header's braces and mistake the state's name for a
-    // broken math expression.
+    // {expression}s are resolved on the body only, before the \{name\}
+    // header (engine font-size codes, not expression syntax) is attached.
     const text = evaluateTooltipExpressions(battler, rawText);
-    return `\\I[${state.iconIndex}]\\C[1]\\{${state.name}\\}\\C[${textColor}]\n${text}`;
+    return `\\ST[1]${state.name}\\ST[0]\\I[${state.iconIndex}]\\C[${textColor}]\n${text}`;
   }
 
   const statAliases = {
@@ -422,9 +469,8 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     lck: (battler) => battler.luk,
     luk: (battler) => battler.luk,
     luck: (battler) => battler.luk,
-    // hit/eva/cri/cev are stored as 0-1 ratios internally (e.g. 0.95 for
-    // 95%), unlike atk/def/etc which are plain numbers - scale to a
-    // 0-100 "points" value so formulas like {hit * 0.5} read sensibly.
+    // hit/eva/cri/cev are 0-1 ratios internally; scaled to 0-100 points here
+    // so formulas like {hit * 0.5} read as plain percentages.
     hit: (battler) => battler.hit * 100,
     hitrate: (battler) => battler.hit * 100,
     eva: (battler) => battler.eva * 100,
@@ -451,14 +497,18 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return resolved;
   }
 
+  /** @param {Game_Battler} battler @returns {boolean} */
   function isEnemyBattler(battler) {
     return !!(battler.isEnemy && battler.isEnemy());
   }
 
-  // Only handles the common "statName * 0.05" shape, checked against the raw
-  // expression text before any stat name is resolved to a real value - so an
-  // enemy's actual stat never gets touched at all, just the literal multiplier
-  // already written in the tooltip text.
+  /**
+   * Converts a "statName * 0.05" style expression into a percent string,
+   * without evaluating the stat itself - used to keep enemy stats hidden
+   * when Enemy Tooltips: Percent Only is on.
+   * @param {string} expr - raw expression text, before stat names are resolved
+   * @returns {string|null} formatted percent, or null if expr isn't that shape
+   */
   function enemyPercentExpression(expr) {
     const match = expr
       .trim()
@@ -468,6 +518,13 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return `${percent.toFixed(decimalPlaces)}%`;
   }
 
+  /**
+   * Replaces every {expression} in a tooltip's text with its evaluated,
+   * colored result. Invalid expressions print as "?" and log a warning.
+   * @param {Game_Battler} battler - battler the tooltip is being shown for
+   * @param {string} text - raw text containing zero or more {expression} spans
+   * @returns {string}
+   */
   function evaluateTooltipExpressions(battler, text) {
     return text.replace(/\{([^{}]+)\}/g, (fullMatch, expr) => {
       try {
@@ -478,7 +535,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
               `Enemy Tooltips: Percent Only is ON, but "${expr}" isn't a simple "stat * number" expression, so it can't be converted to a percent - reword this entry`,
             );
           }
-          return `\x1bC[${expressionColor}]${percentText}\x1bC[${textColor}]`;
+          return `\\BS[1]${percentText}\\BS[0]`;
         }
 
         const resolved = resolveExpression(battler, expr);
@@ -489,7 +546,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
         if (typeof value !== 'number' || Number.isNaN(value)) {
           throw new Error(`Expression did not evaluate to a number: ${expr}`);
         }
-        return `\x1bC[${expressionColor}]${value.toFixed(decimalPlaces)}\x1bC[${textColor}]`;
+        return `\\BS[1]${value.toFixed(decimalPlaces)}\\BS[0]`;
       } catch (e) {
         console.warn(
           `${pluginName}: Failed to evaluate tooltip expression "{${expr}}" - ${e.message}`,
@@ -499,26 +556,25 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     });
   }
 
-  // Gamepad tooltip-browsing state. Only one scene is ever active at a time,
-  // so a single shared object is fine - it gets reset whenever a scene that
-  // supports tooltips is (re)created. `mode` distinguishes cycling through
-  // battlers' state/buff icons (no native cursor to follow, so Prev/Next
-  // steps through them by hand) from tracking whichever row is currently
-  // selected in an item/equip/shop list (which already has its own cursor,
-  // so there's nothing to step - just mirror whatever's selected).
+  //============================================================================//
+  //                        GAMEPAD TOOLTIP BROWSING                            //
+  //============================================================================//
+
+  // Shared state for gamepad-driven tooltip browsing. Only one scene is ever
+  // active at a time, so a single object is fine - reset whenever a scene
+  // that supports tooltips is (re)created.
+  //
+  // mode: 'battler' cycles state/buff icons by hand with Prev/Next;
+  // 'item' mirrors whichever row an item/equip/shop list's own cursor is on.
   const gamepadTooltip = {
     active: false,
     mode: null,
     battlers: [],
     index: 0,
     itemWindow: null,
-    // Tracked separately from the mouse-hover system's own
-    // this._tooltipHoveredItem (see updateGamepadItemTooltip and
-    // updateItemTooltipHover below) - the two used to share that field, but
-    // that meant the mouse and gamepad could each overwrite the other's
-    // notion of "what's currently shown" just by coincidentally landing on
-    // the same/different row, with no real input from the player driving
-    // it either way.
+    // Kept separate from the mouse-hover system's this._tooltipHoveredItem
+    // (see updateGamepadItemTooltip/updateItemTooltipHover below) so mouse
+    // and gamepad tracking can't overwrite each other's selection.
     lastItem: null,
   };
 
@@ -529,27 +585,69 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     gamepadTooltip.lastItem = null;
   }
 
-  // Shared "is this window's content actually the thing on screen right
-  // now" check, used everywhere a stale reference to a window could
-  // otherwise keep a tooltip alive after that window stopped being the
-  // relevant one - e.g. Scene_Battle.commandSkill/commandItem
-  // (rmmz_scenes.js) call this._statusWindow.hide() when the skill/item
-  // list opens on top of it, but never clear its _tooltipIconRects, so
-  // without this check a battler tooltip anchored to that window would
-  // otherwise keep showing right through the new list.
+  //============================================================================//
+  //                   TOOLTIP ANCHOR / WINDOW LOOKUP HELPERS                   //
+  //============================================================================//
+
+  /**
+   * Checks whether a window is currently on screen and open, so a stale
+   * reference can't keep a tooltip anchored to something that's been hidden.
+   * @param {Window_Base} win
+   * @returns {boolean}
+   */
   function isWindowUsableForTooltip(win) {
     if (!win.visible) return false;
     if (win.isOpen && !win.isOpen()) return false;
     return true;
   }
 
-  // Menu case: any Window_StatusBase-derived window (Window_MenuStatus,
-  // Window_Status, ...) already records _tooltipIconRects per actor as a
-  // side effect of drawing (added for the menu hover fix) - reuse that as
-  // the list of "battlers with a tooltip available" instead of rediscovering
-  // it a different way. Battle case: just every party/troop member with an
-  // active icon, minus anyone whose only anchor (see
-  // battlerTooltipStillValid below) isn't currently showing.
+  // Actor icons come from two rendering strategies depending on the window:
+  //   - Window_MenuStatus/Window_Status draw icons straight onto their own
+  //     bitmap (see Window_StatusBase.prototype.drawActorIcons below),
+  //     tracked via _tooltipIconRects.
+  //   - Window_BattleStatus instead creates a real Sprite_StateIcon per
+  //     actor (the same class enemies use), stored in that window's
+  //     _additionalSprites under "actor<id>-stateIcon".
+  // Enemies always use the sprite route via the spriteset.
+  /**
+   * Finds the Sprite_StateIcon currently showing a battler's icon, if any.
+   * @param {Scene_Base} scene
+   * @param {Game_Battler} battler
+   * @returns {Sprite_StateIcon|null}
+   */
+  function findStateIconSprite(scene, battler) {
+    if (scene instanceof Scene_Battle && battler.isEnemy && battler.isEnemy()) {
+      const spriteset = scene._spriteset;
+      const enemySprites = spriteset && spriteset._enemySprites;
+      const enemySprite =
+        enemySprites && enemySprites.find((s) => s._battler === battler);
+      return (enemySprite && enemySprite._stateIconSprite) || null;
+    }
+    if (battler.isActor && battler.isActor()) {
+      const layer = scene._windowLayer;
+      if (!layer) return null;
+      const key = `actor${battler.actorId()}-stateIcon`;
+      for (const child of layer.children) {
+        if (
+          child instanceof Window_StatusBase &&
+          child._additionalSprites &&
+          child._additionalSprites[key] instanceof Sprite_StateIcon &&
+          isWindowUsableForTooltip(child)
+        ) {
+          return child._additionalSprites[key];
+        }
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Lists every battler with a tooltip currently available on screen: in
+   * menus, anyone recorded in a window's _tooltipIconRects or shown via a
+   * Sprite_StateIcon; in battle, every party/troop member with an active icon.
+   * @param {Scene_Base} scene
+   * @returns {Game_Battler[]}
+   */
   function collectTooltipBattlers(scene) {
     if (scene instanceof Scene_Battle) {
       return $gameParty
@@ -565,10 +663,12 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     if (layer) {
       for (const child of layer.children) {
         if (
-          child instanceof Window_StatusBase &&
-          child._tooltipIconRects &&
-          isWindowUsableForTooltip(child)
+          !(child instanceof Window_StatusBase) ||
+          !isWindowUsableForTooltip(child)
         ) {
+          continue;
+        }
+        if (child._tooltipIconRects) {
           for (const rects of Object.values(child._tooltipIconRects)) {
             for (const rect of rects) {
               if (
@@ -581,27 +681,35 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
             }
           }
         }
+        if (child._additionalSprites) {
+          for (const sprite of Object.values(child._additionalSprites)) {
+            if (
+              sprite instanceof Sprite_StateIcon &&
+              sprite._battler &&
+              !seen.has(sprite._battler) &&
+              sprite._battler.allIcons().length > 0
+            ) {
+              seen.add(sprite._battler);
+              battlers.push(sprite._battler);
+            }
+          }
+        }
       }
     }
     return battlers;
   }
 
-  // Per-frame validity gate for gamepad battler browsing (see
-  // isWindowUsableForTooltip above for why this is needed): true only while
-  // the battler's icons are still being shown by something currently on
-  // screen - the enemy's own sprite in battle, or whichever
-  // Window_StatusBase last drew that actor's icons, in every other case
-  // (including actors in battle, whose icons only ever come from
-  // Window_BattleStatus).
+  /**
+   * Per-frame validity gate for gamepad battler browsing: true only while
+   * the battler's icon is still being shown by something currently on screen.
+   * @param {Scene_Base} scene
+   * @param {Game_Battler} battler
+   * @returns {boolean}
+   */
   function battlerTooltipStillValid(scene, battler) {
     if (!battler) return false;
-    if (scene instanceof Scene_Battle && battler.isEnemy && battler.isEnemy()) {
-      const spriteset = scene._spriteset;
-      const enemySprites = spriteset && spriteset._enemySprites;
-      const enemySprite =
-        enemySprites && enemySprites.find((s) => s._battler === battler);
-      return !!(enemySprite && enemySprite.visible);
-    }
+    const iconSprite = findStateIconSprite(scene, battler);
+    if (iconSprite) return iconSprite.visible !== false;
     const layer = scene._windowLayer;
     if (!layer) return false;
     const actorId =
@@ -617,29 +725,23 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return false;
   }
 
-  // Screen position (plus size, so positionTooltipAt can flip above/below
-  // it to stay on screen) to anchor the tooltip to for a given battler,
-  // mirroring where mouse hover would already be pointing: the enemy's own
-  // icon sprite in battle, or the first recorded icon rect in whichever
-  // menu window is showing that battler. Returns null if neither can be
-  // found (scene layout this project doesn't use yet), in which case the
-  // caller falls back to a fixed position rather than crashing.
+  /**
+   * Screen position (plus size, for flipping above/below) to anchor a
+   * battler's tooltip to, mirroring where mouse hover would point.
+   * @param {Scene_Base} scene
+   * @param {Game_Battler} battler
+   * @returns {{x:number,y:number,width:number,height:number}|null} null if no anchor was found
+   */
   function anchorPositionFor(scene, battler) {
-    if (scene instanceof Scene_Battle && battler.isEnemy && battler.isEnemy()) {
-      const spriteset = scene._spriteset;
-      const enemySprites = spriteset && spriteset._enemySprites;
-      const enemySprite =
-        enemySprites && enemySprites.find((s) => s._battler === battler);
-      const iconSprite = enemySprite && enemySprite._stateIconSprite;
-      if (iconSprite) {
-        const point = iconSprite.worldTransform.apply(new Point(0, 0));
-        return {
-          x: point.x,
-          y: point.y,
-          width: iconSprite.width,
-          height: iconSprite.height,
-        };
-      }
+    const iconSprite = findStateIconSprite(scene, battler);
+    if (iconSprite) {
+      const point = iconSprite.worldTransform.apply(new Point(0, 0));
+      return {
+        x: point.x,
+        y: point.y,
+        width: iconSprite.width,
+        height: iconSprite.height,
+      };
     }
     const layer = scene._windowLayer;
     if (layer) {
@@ -669,300 +771,268 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return null;
   }
 
-  // Installs the same tooltip window/show/hide/follow-cursor plumbing onto any
-  // scene class. createHookName is whichever lifecycle method that scene uses
-  // to finish building its windows (Scene_Battle: "createAllWindows",
-  // Scene_MenuBase: "create") - so this same logic covers battle and every
-  // menu screen (Scene_Menu, Scene_Status, Scene_Item, Scene_Skill, Scene_Equip,
-  // etc, since they all inherit from Scene_MenuBase) without duplicating it.
-  function installTooltipSupport(sceneProto, createHookName) {
-    const _create = sceneProto[createHookName];
-    sceneProto[createHookName] = function () {
-      _create.call(this);
-      this.createTooltipWindow();
-    };
+  //============================================================================//
+  //                     SCENE TOOLTIP SUPPORT INSTALLATION                     //
+  //============================================================================//
+  // Shared implementation for both Scene_Battle and Scene_MenuBase (Scene_Menu,
+  // Scene_Item, Scene_Skill, Scene_Equip etc. all inherit from the latter).
+  // Each function below is attached to both prototypes directly further down,
+  // so "Go to Definition"/"Find References" on this.foo() calls resolve to a
+  // real prototype member instead of a dynamically-assigned property.
 
-    const _update = sceneProto.update;
-    sceneProto.update = function () {
-      _update.call(this);
-      this.updateGamepadTooltip();
-      this.updateItemTooltipHover();
-
-      // The cursor is a point, not a rect, but positionTooltipAt only needs
-      // width/height to know how far past the anchor the tooltip's near
-      // edge would sit - passing 0 for both means "flip above/below right
-      // at the cursor" instead of "right at the far edge of an icon/row".
-      if (this._stateTooltip.visible && !gamepadTooltip.active) {
-        this.positionTooltipAt({
-          x: TouchInput.x + WauLau.StateTooltips.offsetX,
-          y: TouchInput.y + WauLau.StateTooltips.offsetY,
-          width: 0,
-          height: 0,
-        });
-      }
-    };
-
-    // ToggleTooltip prefers item mode: if an item/equip/shop list currently
-    // has the cursor (i.e. is the active, focused window), that's a much
-    // stronger "this is what the player is looking at" signal than the
-    // battler-icon browsing below, and unlike state/buff icons an item row
-    // already has its own cursor to track, so there's nothing to step
-    // through by hand - Prev/Next simply don't apply in this mode. Falls
-    // back to the original battler-cycling behavior when no such list is
-    // focused (e.g. the party overview screen).
-    sceneProto.activateGamepadTooltip = function () {
-      const itemWindow = findActiveItemWindow(this);
-      if (itemWindow) {
-        gamepadTooltip.active = true;
-        gamepadTooltip.mode = 'item';
-        gamepadTooltip.itemWindow = itemWindow;
-        this.updateGamepadItemTooltip();
-        return;
-      }
-      const battlers = collectTooltipBattlers(this);
-      if (battlers.length > 0) {
-        gamepadTooltip.active = true;
-        gamepadTooltip.mode = 'battler';
-        gamepadTooltip.battlers = battlers;
-        gamepadTooltip.index = 0;
-        this.selectGamepadTooltipBattler();
-      }
-    };
-
-    sceneProto.deactivateGamepadTooltip = function () {
-      resetGamepadTooltip();
-      this._tooltipItemMode = false;
-      this._tooltipHoveredItem = null;
-      this.hideTooltip();
-    };
-
-    sceneProto.updateGamepadTooltip = function () {
-      if (Input.isTriggered('ToggleTooltip')) {
-        if (gamepadTooltip.active) {
-          this.deactivateGamepadTooltip();
-        } else {
-          this.activateGamepadTooltip();
-        }
-        return;
-      }
-
-      if (!gamepadTooltip.active) return;
-
-      if (gamepadTooltip.mode === 'item') {
-        this.updateGamepadItemTooltip();
-        return;
-      }
-
-      // Re-checked every frame (not just on toggle/Prev/Next) so that a
-      // battler's tooltip gets dismissed the moment whatever was showing its
-      // icons stops being the thing on screen - e.g. opening the skill/item
-      // list in battle hides the party status window (Scene_Battle.
-      // commandSkill/commandItem in rmmz_scenes.js) without this plugin ever
-      // being told, so without this check the tooltip would otherwise keep
-      // showing right on top of that new list.
-      if (
-        !battlerTooltipStillValid(
-          this,
-          gamepadTooltip.battlers[gamepadTooltip.index],
-        )
-      ) {
-        this.deactivateGamepadTooltip();
-        return;
-      }
-
-      if (Input.isTriggered('TooltipNext')) {
-        gamepadTooltip.index =
-          (gamepadTooltip.index + 1) % gamepadTooltip.battlers.length;
-        this.selectGamepadTooltipBattler();
-      } else if (Input.isTriggered('TooltipPrev')) {
-        gamepadTooltip.index =
-          (gamepadTooltip.index - 1 + gamepadTooltip.battlers.length) %
-          gamepadTooltip.battlers.length;
-        this.selectGamepadTooltipBattler();
-      }
-    };
-
-    // Shared by selectGamepadTooltipBattler, updateGamepadItemTooltip, and
-    // the mouse-follow positioning in update() above: sits the tooltip just
-    // below the anchor (an icon, a list row, or the cursor - anything with
-    // an {x, y, width, height}), flipping to just above it instead when
-    // there isn't enough room below, so it never gets cut off the bottom of
-    // the screen. Falls back to screen-center when no anchor was found.
-    const TOOLTIP_ANCHOR_GAP_Y = 4;
-    const TOOLTIP_ANCHOR_GAP_X = -2;
-    sceneProto.positionTooltipAt = function (anchor) {
-      const tw = this._stateTooltip.width;
-      const th = this._stateTooltip.height;
-
-      let x, y;
-      if (anchor) {
-        x = anchor.x + TOOLTIP_ANCHOR_GAP_X;
-        const below = anchor.y + (anchor.height || 0) - TOOLTIP_ANCHOR_GAP_Y;
-        const above = anchor.y + TOOLTIP_ANCHOR_GAP_Y - th;
-        if (below + th <= Graphics.boxHeight) {
-          y = below;
-        } else if (above >= 0) {
-          y = above;
-        } else {
-          // Neither side fully fits (a very short/narrow screen) - below is
-          // at least closest to the anchor, so clamp that instead of
-          // picking one side arbitrarily.
-          y =
-            Math.abs(Graphics.boxHeight - (below + th)) > Math.abs(above) ?
-              above
-            : below;
-        }
-      } else {
-        x = Graphics.boxWidth / 2;
-        y = Graphics.boxHeight / 2;
-      }
-
-      this._stateTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw));
-      this._stateTooltip.y = Math.max(0, Math.min(y, Graphics.boxHeight - th));
-    };
-
-    sceneProto.selectGamepadTooltipBattler = function () {
-      const battler = gamepadTooltip.battlers[gamepadTooltip.index];
-      this.showTooltip(battler);
-      this.positionTooltipAt(anchorPositionFor(this, battler));
-    };
-
-    // Mirrors whichever row gamepadTooltip.itemWindow's own cursor is
-    // currently on - no Prev/Next handling needed since normal list
-    // navigation already moves that cursor. Bails out (same as toggling
-    // tooltip browsing off) the moment that window stops being the active,
-    // on-screen list, which is what makes opening a different window on top
-    // of it (or closing back out of it) correctly dismiss the tooltip
-    // instead of leaving it stuck on the last selected row.
-    sceneProto.updateGamepadItemTooltip = function () {
-      const win = gamepadTooltip.itemWindow;
-      if (!win || !win.active || !isWindowUsableForTooltip(win)) {
-        this.deactivateGamepadTooltip();
-        return;
-      }
-
-      const index = win.index();
-      const item = index >= 0 ? win.itemAt(index) : null;
-      if (item) {
-        if (item !== gamepadTooltip.lastItem) {
-          gamepadTooltip.lastItem = item;
-          this.showItemTooltip(item);
-        }
-        this.positionTooltipAt(anchorPositionForItemRow(win, index));
-      } else if (gamepadTooltip.lastItem) {
-        gamepadTooltip.lastItem = null;
-        this.hideTooltip();
-      }
-    };
-
-    sceneProto.createTooltipWindow = function () {
-      this._stateTooltip = new Window_StateTooltip();
-      this.addChild(this._stateTooltip);
-      resetGamepadTooltip();
-    };
-
-    sceneProto.showTooltip = function (battler) {
-      this._stateTooltip.setup(battler);
-      this._stateTooltip.visible = true;
-      // Cleared so a stale hover from the item-tooltip system (see
-      // updateItemTooltipHover below) can't hide this tooltip right back out
-      // again on the very next frame.
-      this._tooltipItemMode = false;
-      this._tooltipHoveredItem = null;
-      // Re-adding an already-added child moves it to the front of the
-      // render order, so the tooltip always draws above any window
-      // created after it, regardless of scene-specific creation order.
-      this.addChild(this._stateTooltip);
-    };
-
-    sceneProto.hideTooltip = function () {
-      this._stateTooltip.visible = false;
-    };
-
-    sceneProto.showItemTooltip = function (item) {
-      this._stateTooltip.setupItem(item);
-      this._stateTooltip.visible = true;
-      this._tooltipItemMode = true;
-      // Re-adding an already-added child moves it to the front of the
-      // render order, same reasoning as showTooltip() above.
-      this.addChild(this._stateTooltip);
-    };
-
-    // Scans every item/equip/shop list window in this scene for the row the
-    // mouse is over, using each window's own built-in hitIndex()/itemAt()
-    // (the same pair the engine uses for click-to-select) rather than
-    // reimplementing row hit-testing by hand. Done once here at the scene
-    // level, after every child window has already run its own update() this
-    // frame, rather than having each window call showItemTooltip/hideTooltip
-    // itself - with several such windows visible at once (equip screen shows
-    // both the slot list and the picker list together), whichever window's
-    // update() happened to run last would silently win the tooltip for the
-    // frame, so this collects "what's actually under the mouse right now"
-    // in one pass instead of leaving it to child-update ordering.
-    //
-    // Only touches item-mode tooltips (guarded by _tooltipItemMode) so this
-    // never fights the separate state/buff icon-hover tooltip system above.
-    //
-    // The mouse takes over from gamepad browsing only once it actually
-    // lands on something real - both halves matter:
-    //   - "actually moved" (TouchInput.isMoved()/isHovered(), a one-frame
-    //     pulse tied to real mouse-move events) so a mouse that's merely
-    //     resting somewhere on the list - coincidentally over some row,
-    //     while the player is exclusively driving the gamepad - can't fight
-    //     whatever row the gamepad has selected just by sitting there.
-    //   - "landed on an item" so a real move that ends up over empty space
-    //     doesn't cancel gamepad browsing for nothing, leaving no tooltip
-    //     at all where a perfectly good one was already showing (this was
-    //     the actual cause of an earlier version of this fix hiding the
-    //     tooltip on any mouse movement without ever showing a new one).
-    // Only once both are true does the mouse cancel gamepad mode, right as
-    // it takes over showing the new item below - never as a separate step,
-    // so there's no gap where gamepad mode is off but nothing has replaced
-    // what it was showing.
-    sceneProto.updateItemTooltipHover = function () {
-      const mouseActive = TouchInput.isMoved() || TouchInput.isHovered();
-
-      let hoveredItem = null;
-      const layer = this._windowLayer;
-      if (layer) {
-        for (const child of layer.children) {
-          if (!isItemHoverWindow(child) || !isWindowUsableForTooltip(child)) {
-            continue;
-          }
-          const index = child.hitIndex();
-          if (index >= 0) {
-            const item = child.itemAt(index);
-            if (item) hoveredItem = item;
-          }
-        }
-      }
-
-      if (gamepadTooltip.active) {
-        if (!mouseActive || !hoveredItem) return;
-        resetGamepadTooltip();
-      }
-
-      if (hoveredItem) {
-        if (hoveredItem !== this._tooltipHoveredItem) {
-          this._tooltipHoveredItem = hoveredItem;
-          this.showItemTooltip(hoveredItem);
-        }
-      } else if (this._tooltipHoveredItem) {
-        this._tooltipHoveredItem = null;
-        if (this._tooltipItemMode) {
-          this._tooltipItemMode = false;
-          this.hideTooltip();
-        }
-      }
-    };
+  /**
+   * Creates this scene's tooltip window (hidden by default) and resets
+   * gamepad-browsing state for it.
+   * @param {Scene_Base} scene
+   */
+  function createTooltipWindow(scene) {
+    scene._stateTooltip = new Window_StateTooltip();
+    scene.addChild(scene._stateTooltip);
+    resetGamepadTooltip();
   }
 
-  // Explicit allow-list (rather than duck-typing on itemAt()) so this only
-  // ever fires for the item/equip/shop screens this feature was built for -
-  // Window_SkillList and other Window_Selectable subclasses also implement
-  // itemAt() for unrelated data, and would otherwise pick up tooltips too.
-  // Window_EquipItem and Window_ShopSell both extend Window_ItemList, so
-  // that one check already covers them.
+  /**
+   * Shows a battler's state/buff tooltip.
+   * @param {Scene_Base} scene
+   * @param {Game_Battler} battler
+   */
+  function showTooltip(scene, battler) {
+    scene._stateTooltip.setup(battler);
+    scene._stateTooltip.visible = true;
+    scene._tooltipItemMode = false;
+    scene._tooltipHoveredItem = null;
+    // Re-adding an already-added child moves it to the front of the
+    // render order, so the tooltip draws above any window created after it.
+    scene.addChild(scene._stateTooltip);
+  }
+
+  /** @param {Scene_Base} scene */
+  function hideTooltip(scene) {
+    scene._stateTooltip.visible = false;
+  }
+
+  /**
+   * Shows a weapon/armor/item tooltip.
+   * @param {Scene_Base} scene
+   * @param {RPG.BaseItem} item
+   */
+  function showItemTooltip(scene, item) {
+    scene._stateTooltip.setupItem(item);
+    scene._stateTooltip.visible = true;
+    scene._tooltipItemMode = true;
+    scene.addChild(scene._stateTooltip);
+  }
+
+  /** Turns gamepad tooltip browsing off and hides the tooltip. @param {Scene_Base} scene */
+  function deactivateGamepadTooltip(scene) {
+    resetGamepadTooltip();
+    scene._tooltipItemMode = false;
+    scene._tooltipHoveredItem = null;
+    hideTooltip(scene);
+  }
+
+  const TOOLTIP_ANCHOR_GAP_Y = 4;
+  const TOOLTIP_ANCHOR_GAP_X = -2;
+  /**
+   * Positions the tooltip window just below an anchor rect, flipping
+   * above it when there isn't enough room, or centering it on screen
+   * when no anchor was found.
+   * @param {Scene_Base} scene
+   * @param {{x:number,y:number,width:number,height:number}|null} anchor
+   */
+  function positionTooltipAt(scene, anchor) {
+    const tw = scene._stateTooltip.width;
+    const th = scene._stateTooltip.height;
+
+    let x, y;
+    if (anchor) {
+      x = anchor.x + TOOLTIP_ANCHOR_GAP_X;
+      const below = anchor.y + (anchor.height || 0) - TOOLTIP_ANCHOR_GAP_Y;
+      const above = anchor.y + TOOLTIP_ANCHOR_GAP_Y - th;
+      if (below + th <= Graphics.boxHeight) {
+        y = below;
+      } else if (above >= 0) {
+        y = above;
+      } else {
+        // Neither side fully fits - clamp to whichever is closest.
+        y =
+          Math.abs(Graphics.boxHeight - (below + th)) > Math.abs(above) ?
+            above
+          : below;
+      }
+    } else {
+      x = Graphics.boxWidth / 2;
+      y = Graphics.boxHeight / 2;
+    }
+
+    scene._stateTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw));
+    scene._stateTooltip.y = Math.max(0, Math.min(y, Graphics.boxHeight - th));
+  }
+
+  /**
+   * Shows and anchors the tooltip for whichever battler gamepadTooltip.index
+   * currently points at.
+   * @param {Scene_Base} scene
+   */
+  function selectGamepadTooltipBattler(scene) {
+    const battler = gamepadTooltip.battlers[gamepadTooltip.index];
+    showTooltip(scene, battler);
+    positionTooltipAt(scene, anchorPositionFor(scene, battler));
+  }
+
+  /**
+   * Prefers item mode when an item/equip/shop list has the cursor (that
+   * list already has its own cursor to track, so Prev/Next don't apply);
+   * otherwise falls back to cycling battler icons by hand.
+   * @param {Scene_Base} scene
+   */
+  function activateGamepadTooltip(scene) {
+    const itemWindow = findActiveItemWindow(scene);
+    if (itemWindow) {
+      gamepadTooltip.active = true;
+      gamepadTooltip.mode = 'item';
+      gamepadTooltip.itemWindow = itemWindow;
+      updateGamepadItemTooltip(scene);
+      return;
+    }
+    const battlers = collectTooltipBattlers(scene);
+    if (battlers.length > 0) {
+      gamepadTooltip.active = true;
+      gamepadTooltip.mode = 'battler';
+      gamepadTooltip.battlers = battlers;
+      gamepadTooltip.index = 0;
+      selectGamepadTooltipBattler(scene);
+    }
+  }
+
+  /**
+   * Mirrors whichever row gamepadTooltip.itemWindow's own cursor is on.
+   * Bails out once that window stops being the active, on-screen list.
+   * @param {Scene_Base} scene
+   */
+  function updateGamepadItemTooltip(scene) {
+    const win = gamepadTooltip.itemWindow;
+    if (!win || !win.active || !isWindowUsableForTooltip(win)) {
+      deactivateGamepadTooltip(scene);
+      return;
+    }
+
+    const index = win.index();
+    const item = index >= 0 ? win.itemAt(index) : null;
+    if (item) {
+      if (item !== gamepadTooltip.lastItem) {
+        gamepadTooltip.lastItem = item;
+        showItemTooltip(scene, item);
+      }
+      positionTooltipAt(scene, anchorPositionForItemRow(win, index));
+    } else if (gamepadTooltip.lastItem) {
+      gamepadTooltip.lastItem = null;
+      hideTooltip(scene);
+    }
+  }
+
+  /**
+   * Per-frame gamepad-browsing driver: handles the toggle button, then
+   * (while active) either defers to item-list tracking or validates/steps
+   * through battlers with Prev/Next.
+   * @param {Scene_Base} scene
+   */
+  function updateGamepadTooltip(scene) {
+    if (Input.isTriggered('ToggleTooltip')) {
+      if (gamepadTooltip.active) {
+        deactivateGamepadTooltip(scene);
+      } else {
+        activateGamepadTooltip(scene);
+      }
+      return;
+    }
+
+    if (!gamepadTooltip.active) return;
+
+    if (gamepadTooltip.mode === 'item') {
+      updateGamepadItemTooltip(scene);
+      return;
+    }
+
+    // Re-checked every frame so a battler's tooltip is dismissed the
+    // moment whatever was showing its icons stops being on screen.
+    if (
+      !battlerTooltipStillValid(
+        scene,
+        gamepadTooltip.battlers[gamepadTooltip.index],
+      )
+    ) {
+      deactivateGamepadTooltip(scene);
+      return;
+    }
+
+    if (Input.isTriggered('TooltipNext')) {
+      gamepadTooltip.index =
+        (gamepadTooltip.index + 1) % gamepadTooltip.battlers.length;
+      selectGamepadTooltipBattler(scene);
+    } else if (Input.isTriggered('TooltipPrev')) {
+      gamepadTooltip.index =
+        (gamepadTooltip.index - 1 + gamepadTooltip.battlers.length) %
+        gamepadTooltip.battlers.length;
+      selectGamepadTooltipBattler(scene);
+    }
+  }
+
+  // -----------------------------MOUSE ITEM HOVER------------------------------//
+  // Scans every item/equip/shop list window in this scene for the row the
+  // mouse is over, using each window's own hitIndex()/itemAt(), collected
+  // once per frame at the scene level so multiple visible lists (e.g. the
+  // equip screen's slot + picker lists) can't fight over the tooltip.
+  // Only touches item-mode tooltips (_tooltipItemMode), so this never
+  // fights the separate state/buff icon-hover system above. The mouse
+  // takes over from gamepad browsing only once it has actually moved
+  // (TouchInput.isMoved()/isHovered()) AND landed on a real item, so a
+  // resting cursor or a move into empty space can't interrupt gamepad mode.
+  /** @param {Scene_Base} scene */
+  function updateItemTooltipHover(scene) {
+    const mouseActive = TouchInput.isMoved() || TouchInput.isHovered();
+
+    let hoveredItem = null;
+    const layer = scene._windowLayer;
+    if (layer) {
+      for (const child of layer.children) {
+        if (!isItemHoverWindow(child) || !isWindowUsableForTooltip(child)) {
+          continue;
+        }
+        const index = child.hitIndex();
+        if (index >= 0) {
+          const item = child.itemAt(index);
+          if (item) hoveredItem = item;
+        }
+      }
+    }
+
+    if (gamepadTooltip.active) {
+      if (!mouseActive || !hoveredItem) return;
+      resetGamepadTooltip();
+    }
+
+    if (hoveredItem) {
+      if (hoveredItem !== scene._tooltipHoveredItem) {
+        scene._tooltipHoveredItem = hoveredItem;
+        showItemTooltip(scene, hoveredItem);
+      }
+    } else if (scene._tooltipHoveredItem) {
+      scene._tooltipHoveredItem = null;
+      if (scene._tooltipItemMode) {
+        scene._tooltipItemMode = false;
+        hideTooltip(scene);
+      }
+    }
+  }
+
+  //============================================================================//
+  //                       ITEM/EQUIP/SHOP LIST HELPERS                         //
+  //============================================================================//
+
+  // Explicit allow-list of the item/equip/shop windows this feature targets.
+  // Window_EquipItem and Window_ShopSell both extend Window_ItemList.
+  /** @param {Window_Selectable} win @returns {boolean} */
   function isItemHoverWindow(win) {
     return (
       win instanceof Window_ItemList ||
@@ -971,14 +1041,12 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     );
   }
 
-  // Whichever item/equip/shop list currently has the cursor, if any - the
-  // one gamepad tooltip browsing should track instead of cycling battlers.
-  // Requires an actual selection (index() >= 0), not just visibility, since
-  // e.g. a list that's on screen but not yet interacted with can still
-  // report active === true right after being activated with nothing
-  // selected. At most one such window is ever active at a time (that's how
-  // RPG Maker MZ's own window focus works - activating one always
-  // deactivates whatever had focus before), so the first match wins.
+  /**
+   * The active item/equip/shop list with a real selection, if any - the one
+   * gamepad tooltip browsing should track instead of cycling battlers.
+   * @param {Scene_Base} scene
+   * @returns {Window_Selectable|null}
+   */
   function findActiveItemWindow(scene) {
     const layer = scene._windowLayer;
     if (!layer) return null;
@@ -995,46 +1063,180 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return null;
   }
 
-  // Same worldTransform trick anchorPositionFor uses for menu icon rects,
-  // just against a list row's own itemRect() instead of a hand-tracked
-  // rect - every Window_Selectable already knows exactly where its rows are
-  // drawn, so there's no need to record anything extra the way
-  // Window_StatusBase.drawActorIcons does for icons.
+  /**
+   * Screen position/size of a list row, for anchoring an item tooltip.
+   * @param {Window_Selectable} win
+   * @param {number} index - row index
+   * @returns {{x:number,y:number,width:number,height:number}|null}
+   */
   function anchorPositionForItemRow(win, index) {
     if (!win._contentsSprite) return null;
     const rect = win.itemRect(index);
-    // Top-left, matching anchorPositionFor's convention - positionTooltipAt
-    // adds width/height itself when checking whether "below" fits, so this
-    // has to be the near edge, not the far one, or it'd double-count the
-    // row's height and end up positioned a full row too low.
+    // Top-left corner - positionTooltipAt adds width/height itself.
     const point = win._contentsSprite.worldTransform.apply(
       new Point(rect.x, rect.y),
     );
     return { x: point.x, y: point.y, width: rect.width, height: rect.height };
   }
 
-  installTooltipSupport(Scene_Battle.prototype, 'createAllWindows');
-  installTooltipSupport(Scene_MenuBase.prototype, 'create');
+  //============================================================================//
+  //                  SCENE_BATTLE / SCENE_MENUBASE ATTACHMENT                  //
+  //============================================================================//
+  // Attaches every method above directly onto each scene's own prototype
+  // (instead of through a shared install-function parameter) so "Go to
+  // Definition" and "Find References" on this.foo() calls resolve correctly.
 
-  // Defensive guard, not tooltip-related: Sprite_Battler.prototype.setHome
-  // (js/rmmz_sprites.js:476-480) calls this.updatePosition() directly and
-  // unconditionally, completely bypassing the normal update()/updateMain()
-  // chain's "if (this._battler)" check - the only place in the whole engine
-  // that can reach updatePosition() before/without a battler assigned.
-  // bunchastuff.js's own updatePosition() override (several hundred lines
-  // long) assumes this._battler always exists and reads it unconditionally
-  // in multiple places, which throws whenever that setHome() path fires
-  // without one - a bug that predates this plugin's item/equip/shop tooltip
-  // feature but only actually gets excited by it (this feature now also
-  // covers Scene_MenuBase-derived scenes such as Scene_Load, which run
-  // extra per-frame work this plugin didn't do before). Rather than editing
-  // bunchastuff.js directly, wrap whatever updatePosition() is installed by
-  // the time this plugin runs (load order puts bunchastuff.js first) so a
-  // missing battler is a silent no-op instead of a crash - matching exactly
-  // what the vanilla update() guard already does elsewhere for this exact
-  // situation. This keeps the fix self-contained to this plugin, so anyone
-  // reusing it elsewhere doesn't also need to patch a project-specific file
-  // that may not even be present in their project.
+  const _Scene_Battle_createAllWindows =
+    Scene_Battle.prototype.createAllWindows;
+  /** Creates the tooltip window after battle's own windows finish building. */
+  Scene_Battle.prototype.createAllWindows = function () {
+    _Scene_Battle_createAllWindows.call(this);
+    createTooltipWindow(this);
+  };
+
+  const _Scene_Battle_update = Scene_Battle.prototype.update;
+  /** Per-frame: drives gamepad browsing, mouse item-hover, and cursor-follow. */
+  Scene_Battle.prototype.update = function () {
+    _Scene_Battle_update.call(this);
+    updateGamepadTooltip(this);
+    updateItemTooltipHover(this);
+    // Zero width/height tells positionTooltipAt to flip above/below right
+    // at the cursor point, rather than past the far edge of an icon/row.
+    if (this._stateTooltip.visible && !gamepadTooltip.active) {
+      positionTooltipAt(this, {
+        x: TouchInput.x + WauLau.StateTooltips.offsetX,
+        y: TouchInput.y + WauLau.StateTooltips.offsetY,
+        width: 0,
+        height: 0,
+      });
+    }
+  };
+
+  /** Delegates to {@link activateGamepadTooltip}. */
+  Scene_Battle.prototype.activateGamepadTooltip = function () {
+    activateGamepadTooltip(this);
+  };
+  /** Delegates to {@link deactivateGamepadTooltip}. */
+  Scene_Battle.prototype.deactivateGamepadTooltip = function () {
+    deactivateGamepadTooltip(this);
+  };
+  /** Delegates to {@link updateGamepadTooltip}. */
+  Scene_Battle.prototype.updateGamepadTooltip = function () {
+    updateGamepadTooltip(this);
+  };
+  /** Delegates to {@link positionTooltipAt}. */
+  Scene_Battle.prototype.positionTooltipAt = function (anchor) {
+    positionTooltipAt(this, anchor);
+  };
+  /** Delegates to {@link selectGamepadTooltipBattler}. */
+  Scene_Battle.prototype.selectGamepadTooltipBattler = function () {
+    selectGamepadTooltipBattler(this);
+  };
+  /** Delegates to {@link updateGamepadItemTooltip}. */
+  Scene_Battle.prototype.updateGamepadItemTooltip = function () {
+    updateGamepadItemTooltip(this);
+  };
+  /** Delegates to {@link createTooltipWindow}. */
+  Scene_Battle.prototype.createTooltipWindow = function () {
+    createTooltipWindow(this);
+  };
+  /** Delegates to {@link showTooltip}. */
+  Scene_Battle.prototype.showTooltip = function (battler) {
+    showTooltip(this, battler);
+  };
+  /** Delegates to {@link hideTooltip}. */
+  Scene_Battle.prototype.hideTooltip = function () {
+    hideTooltip(this);
+  };
+  /** Delegates to {@link showItemTooltip}. */
+  Scene_Battle.prototype.showItemTooltip = function (item) {
+    showItemTooltip(this, item);
+  };
+  /** Delegates to {@link updateItemTooltipHover}. */
+  Scene_Battle.prototype.updateItemTooltipHover = function () {
+    updateItemTooltipHover(this);
+  };
+
+  const _Scene_MenuBase_create = Scene_MenuBase.prototype.create;
+  /** Creates the tooltip window after the menu scene's own windows finish building. */
+  Scene_MenuBase.prototype.create = function () {
+    _Scene_MenuBase_create.call(this);
+    createTooltipWindow(this);
+  };
+
+  const _Scene_MenuBase_update = Scene_MenuBase.prototype.update;
+  /** Per-frame: drives gamepad browsing, mouse item-hover, and cursor-follow. */
+  Scene_MenuBase.prototype.update = function () {
+    _Scene_MenuBase_update.call(this);
+    updateGamepadTooltip(this);
+    updateItemTooltipHover(this);
+    if (this._stateTooltip.visible && !gamepadTooltip.active) {
+      positionTooltipAt(this, {
+        x: TouchInput.x + WauLau.StateTooltips.offsetX,
+        y: TouchInput.y + WauLau.StateTooltips.offsetY,
+        width: 0,
+        height: 0,
+      });
+    }
+  };
+
+  /** Delegates to {@link activateGamepadTooltip}. */
+  Scene_MenuBase.prototype.activateGamepadTooltip = function () {
+    activateGamepadTooltip(this);
+  };
+  /** Delegates to {@link deactivateGamepadTooltip}. */
+  Scene_MenuBase.prototype.deactivateGamepadTooltip = function () {
+    deactivateGamepadTooltip(this);
+  };
+  /** Delegates to {@link updateGamepadTooltip}. */
+  Scene_MenuBase.prototype.updateGamepadTooltip = function () {
+    updateGamepadTooltip(this);
+  };
+  /** Delegates to {@link positionTooltipAt}. */
+  Scene_MenuBase.prototype.positionTooltipAt = function (anchor) {
+    positionTooltipAt(this, anchor);
+  };
+  /** Delegates to {@link selectGamepadTooltipBattler}. */
+  Scene_MenuBase.prototype.selectGamepadTooltipBattler = function () {
+    selectGamepadTooltipBattler(this);
+  };
+  /** Delegates to {@link updateGamepadItemTooltip}. */
+  Scene_MenuBase.prototype.updateGamepadItemTooltip = function () {
+    updateGamepadItemTooltip(this);
+  };
+  /** Delegates to {@link createTooltipWindow}. */
+  Scene_MenuBase.prototype.createTooltipWindow = function () {
+    createTooltipWindow(this);
+  };
+  /** Delegates to {@link showTooltip}. */
+  Scene_MenuBase.prototype.showTooltip = function (battler) {
+    showTooltip(this, battler);
+  };
+  /** Delegates to {@link hideTooltip}. */
+  Scene_MenuBase.prototype.hideTooltip = function () {
+    hideTooltip(this);
+  };
+  /** Delegates to {@link showItemTooltip}. */
+  Scene_MenuBase.prototype.showItemTooltip = function (item) {
+    showItemTooltip(this, item);
+  };
+  /** Delegates to {@link updateItemTooltipHover}. */
+  Scene_MenuBase.prototype.updateItemTooltipHover = function () {
+    updateItemTooltipHover(this);
+  };
+
+  //============================================================================//
+  //                   ENGINE / MOD COMPATIBILITY GUARDS                        //
+  //============================================================================//
+  // Not tooltip-related - these patches only exist because this feature now
+  // runs extra per-frame work in scenes other custom scripts didn't expect.
+
+  // GUARD: Sprite_Battler.updatePosition ---------------------------------//
+  // bunchastuff.js's updatePosition() override reads this._battler
+  // unconditionally, but Sprite_Battler.prototype.setHome calls
+  // updatePosition() directly without going through the normal guarded
+  // update chain. Wraps whatever updatePosition() is installed by load time
+  // so a missing battler is a silent no-op instead of a crash.
   const _Sprite_Battler_updatePosition_battlerGuard =
     Sprite_Battler.prototype.updatePosition;
   Sprite_Battler.prototype.updatePosition = function () {
@@ -1042,26 +1244,13 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     _Sprite_Battler_updatePosition_battlerGuard.call(this);
   };
 
-  // Second defensive guard, also not tooltip-related: regenDamageResistFix.js
-  // overrides Sprite_Damage.prototype.setup to pop up "RESIST!"/"WEAKNESS!"
-  // text by reading BattleManager._action.calcElementRate(target) - but
-  // BattleManager._action is only set while BattleManager.startAction() has
-  // an action actively executing (js/rmmz_managers.js:2256 defaults it to
-  // null), and this project has at least one other way to pop up a damage
-  // number (this project's own regen/DoT ticks, and apparently its
-  // "conversation battle" encounters too) that doesn't go through that flow.
-  // regenDamageResistFix.js has no null-check before reading it; a nearly
-  // identical copy of this same logic inside bunchastuff.js does check
-  // (`if (BattleManager._action)`) but loads earlier, so
-  // regenDamageResistFix.js's unguarded version is the one actually
-  // installed by the time this runs. Rather than editing that file, wrap
-  // whatever Sprite_Damage.prototype.setup is installed by the time this
-  // plugin runs (load order puts it after regenDamageResistFix.js) and, only
-  // when BattleManager._action is missing, substitute a neutral stand-in
-  // (calcElementRate() => 1, i.e. "normal, no resist or weakness") just for
-  // the duration of that one call - every other branch of the original
-  // function (the regen-message special case, the actual number popup)
-  // still runs completely unchanged.
+  // GUARD: Sprite_Damage.setup --------------------------------------------//
+  // regenDamageResistFix.js reads BattleManager._action.calcElementRate()
+  // with no null-check, but _action is only set during a normal battle
+  // action - regen/DoT ticks and conversation-battle damage pop-ups don't
+  // go through that flow. Wraps whatever setup() is installed by load time
+  // and substitutes a neutral stand-in (calcElementRate() => 1) only when
+  // _action is missing, for the duration of that one call.
   const _Sprite_Damage_setup_actionGuard = Sprite_Damage.prototype.setup;
   Sprite_Damage.prototype.setup = function (target) {
     const hadAction = !!BattleManager._action;
@@ -1205,9 +1394,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return rect.contains(x, y);
   };
 
-  // Duck-typed rather than checking specific scene classes, so this works in
-  // battle and every menu screen that installTooltipSupport() was applied to
-  // (and any future scene it gets added to later) without listing them here.
+  /** Duck-typed check for whether the current scene has tooltip support installed. @returns {boolean} */
   function sceneHasTooltipSupport() {
     return typeof SceneManager._scene.showTooltip === 'function';
   }
@@ -1227,6 +1414,10 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     }
   };
 
+  //============================================================================//
+  //                          WINDOW_STATETOOLTIP                               //
+  //============================================================================//
+
   function Window_StateTooltip() {
     this.initialize(...arguments);
   }
@@ -1242,17 +1433,18 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     this.visible = false;
   };
 
-  // Window_Base.prototype.flushTextState (js/rmmz_windows.js:266) never
-  // actually wraps text by width in the base engine - that's only ever done
-  // by Window_Message's own shouldBreakHere/canBreakHere, which this window
-  // doesn't use. So a long line with no manual break in it just keeps
-  // extending forever. Word-wrap it ourselves: measure candidate lines with
-  // the window's own textSizeEx (which correctly ignores non-printing escape
-  // codes like \B[1] or \C[x] since it runs the same text pipeline drawing
-  // does), and insert a real newline wherever adding the next word would
-  // exceed maxTooltipWidth. Inserting an actual \n (rather than treating
-  // each wrapped segment as a separate draw call) keeps bold/color state
-  // correctly carried across the break, same as any other line break.
+  // --------------------------------TEXT WRAPPING-------------------------------//
+  // The base engine doesn't wrap text by width outside Window_Message, so
+  // long lines are word-wrapped here: real \n characters are inserted where
+  // the next word would exceed maxWidth, measured with textSizeEx (which
+  // ignores escape codes) so bold/color state carries correctly across breaks.
+
+  /**
+   * @param {Window_Base} win
+   * @param {string} line - single line, no \n
+   * @param {number} maxWidth - pixels
+   * @returns {string} the line with \n inserted at wrap points
+   */
   function wrapLine(win, line, maxWidth) {
     const words = line.split(' ');
     let wrapped = '';
@@ -1270,6 +1462,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return wrapped;
   }
 
+  /** Word-wraps every line of text. @param {Window_Base} win @param {string} text @param {number} maxWidth @returns {string} */
   function wrapTooltipText(win, text, maxWidth) {
     return text
       .split('\n')
@@ -1277,17 +1470,18 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       .join('\n');
   }
 
-  // Shared by setup() (battler/state/buff tooltips) and setupItem() (weapon/
-  // armor tooltips): measures every entry's actual (possibly multi-line)
-  // size once, sizes the window from that, then draws each entry at its
-  // matching offset - so sizing and layout can never disagree with each
-  // other. Each entry may carry a `state`/`buff` pair (or neither, for a
-  // plain text entry like the name header or an item tooltip), consumed by
-  // convertEscapeCharacters() below to resolve \TR/\BR/etc for that entry.
+  // --------------------------------ENTRY RENDERING-----------------------------//
+
+  /**
+   * Shared by setup() and setupItem(): measures every entry's wrapped size,
+   * sizes the window from the total, then draws each entry at its offset.
+   * @param {Array<{state:RPG.State|null, buff:object|null, text:string}>} rawEntries
+   */
   Window_StateTooltip.prototype.renderEntries = function (rawEntries) {
     const entries = rawEntries.map((entry) => {
       const wrappedText = wrapTooltipText(this, entry.text, maxTooltipWidth);
       const size = this.textSizeEx(wrappedText);
+      console.log('Wrapped and final text', wrappedText);
       return {
         ...entry,
         text: wrappedText,
@@ -1313,6 +1507,10 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     }
   };
 
+  /**
+   * Builds and renders a battler's full tooltip (name header + states + buffs/debuffs).
+   * @param {Game_Battler} battler
+   */
   Window_StateTooltip.prototype.setup = function (battler) {
     this._battler = battler;
     this._item = null;
@@ -1334,7 +1532,8 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       return {
         state,
         buff: null,
-        text: text || `\\}\\I[${state.iconIndex}]\\C[1]${state.name}`,
+        text:
+          text || `\x1bST[1]${state.name}\x1bST[0]\x1bI[${state.iconIndex}]`,
       };
     });
     const buffEntries = this._buffTexts.map((buff) => ({
@@ -1343,26 +1542,28 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       text: buff.text,
     }));
 
-    // The battler's own name always leads the tooltip, so it's clear at a
-    // glance whose effects are being shown - important now that this
-    // window can show up for any party member or enemy, not just whoever
-    // the mouse happens to be over.
+    // Battler's own name always leads the tooltip.
     const nameEntry = {
       state: null,
       buff: null,
-      text: `\\B[1]\\{${battler.name()}\\}\\B[0]`,
+      text: `\x1bTI[1]${battler.name()}\x1bTI[0]`,
     };
 
     this.renderEntries([nameEntry].concat(stateEntries, buffEntries));
   };
 
-  // Weapon/armor tooltip: auto stat block (this project's own renamed param
-  // labels, from $dataSystem.terms.params, so e.g. "Ballistics" shows up
-  // instead of the default "M.Atk") plus optional flavor text, same as
-  // states get a JSON entry instead of a note tag. Falls back to the item's
-  // own database "description" field when WauLau_ItemTooltips.json has
-  // nothing for it, since many items already have one written and there's
-  // no reason to make authors duplicate that text into the new file too.
+  //============================================================================//
+  //                   ITEM/WEAPON/ARMOR TOOLTIP CONTENT                        //
+  //============================================================================//
+
+  // -----------------------------STAT BLOCK & TRAITS----------------------------//
+
+  /**
+   * Non-zero base params and xparams for a weapon/armor, using this
+   * project's renamed param labels from $dataSystem.terms.params.
+   * @param {RPG.Weapon|RPG.Armor} item
+   * @returns {string[]|null}
+   */
   function itemStatBlockLines(item) {
     const paramNames = $dataSystem.terms.params;
     const lines = [];
@@ -1392,12 +1593,13 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return lines;
   }
 
-  // TRAIT_XPARAM (code 22) dataId order is fixed by the engine: Hit, Eva,
-  // Cri, Cev, Mev, Mrf, Cnt, Hrg, Mrg, Trg. This project renames Hit/Evasion
-  // in $dataSystem.terms.params[8]/[9] (right after the 8 base param names -
-  // the same file this plugin already reads Attack/Ballistics/etc from), and
-  // renames HP/MP/TP to Health/Stamina/Ammo in terms.basic, so both are
-  // pulled from there instead of hardcoding this project's own terminology.
+  /**
+   * Display name for an xparam (TRAIT_XPARAM dataId, fixed engine order:
+   * Hit, Eva, Cri, Cev, Mev, Mrf, Cnt, Hrg, Mrg, Trg). Hit/Evasion and the
+   * HP/MP/TP regen labels pull this project's renamed terms.
+   * @param {number} xparamId
+   * @returns {string|null}
+   */
   function xparamName(xparamId) {
     const terms = $dataSystem.terms;
     switch (xparamId) {
@@ -1426,11 +1628,10 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     }
   }
 
-  // This project's two-handed weapons don't have a dedicated flag - they
-  // work by sealing the "Ranged" equip slot (TRAIT_EQUIP_SEAL, dataId =
-  // that slot's etypeId) so nothing else can go in the off-hand while
-  // they're equipped. Looked up by name rather than a hardcoded etypeId in
-  // case the equip type list is ever reordered.
+  // Two-handed weapons have no dedicated flag in this project - they work
+  // by sealing the "Ranged" equip slot (TRAIT_EQUIP_SEAL), looked up by
+  // name in case the equip type list is ever reordered.
+  /** @param {RPG.Weapon} item @returns {boolean} */
   function isTwoHandedWeapon(item) {
     const rangedEtypeId = $dataSystem.equipTypes.indexOf('Ranged');
     if (rangedEtypeId < 0) return false;
@@ -1441,10 +1642,12 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     );
   }
 
-  // A weapon's damage type isn't a plain field - it's however many
-  // TRAIT_ATTACK_ELEMENT (code 31) traits the database has on it, each
-  // dataId pointing into $dataSystem.elements. Some weapons carry more than
-  // one (e.g. a mace hits as both Crushing and Piercing).
+  /**
+   * A weapon's damage-type + handedness line, from its TRAIT_ATTACK_ELEMENT
+   * traits (a weapon may carry more than one element).
+   * @param {RPG.Weapon} item
+   * @returns {string}
+   */
   function weaponDamageLine(item) {
     const elementNames = item.traits
       .filter((t) => t.code === Game_BattlerBase.TRAIT_ATTACK_ELEMENT)
@@ -1455,8 +1658,11 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return `\\ST[1]${handedness} ${elementNames.join('/')}\\ST[0]`;
   }
 
-  // TRAIT_ATTACK_STATE (code 32): chance (0-1) the weapon's basic attack
-  // inflicts a given state, e.g. the Venom Dagger's 75% Poison.
+  /**
+   * Chance-to-inflict lines from the weapon's TRAIT_ATTACK_STATE traits.
+   * @param {RPG.Weapon} item
+   * @returns {string[]|null}
+   */
   function weaponAttackStateLines(item) {
     const lines = [];
     const inflictions = item.traits
@@ -1474,17 +1680,17 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return lines;
   }
 
-  // Armor's equip slot, named the same way the equip screen already labels
-  // it (e.g. "Body", "Ranged"), shown at the top like weapons' damage line.
+  /** Armor's equip slot label (e.g. "Body Gear"). @param {RPG.Armor} item @returns {string|null} */
   function armorSlotLine(item) {
     const name = $dataSystem.equipTypes[item.etypeId];
     return name ? `\\ST[1]${name} Gear\\ST[0]` : null;
   }
 
-  // TRAIT_STATE_RATE (code 13): multiplier on how likely a state is to land
-  // (1 = unchanged, so those are skipped - only deviations are worth
-  // showing). Phrased the same "Resistant/Vulnerable: +-X% chance to be
-  // affected by Y" way the states JSON already phrases this exact idea.
+  /**
+   * State-rate deviations from normal (TRAIT_STATE_RATE, value !== 1).
+   * @param {RPG.Armor} item
+   * @returns {string[]|null}
+   */
   function armorStateRateLines(item) {
     const lines = [];
     const statusEffects = item.traits
@@ -1506,16 +1712,18 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return lines;
   }
 
-  // TRAIT_STATE_RESIST (code 14): full immunity, just a set of state ids
-  // with no accompanying value - collapsed into a single comma-joined line
-  // rather than one line per state.
+  /**
+   * Full state immunities (TRAIT_STATE_RESIST), one comma-joined line.
+   * @param {RPG.Armor} item
+   * @returns {string[]|null}
+   */
   function armorStateResistLine(item) {
     const lines = [];
     const names = item.traits
       .filter((t) => t.code === Game_BattlerBase.TRAIT_STATE_RESIST)
       .map((t) => {
         const state = $dataStates[t.dataId];
-        lines.push(`\\BS[1]state.name\\BS[0]`);
+        lines.push(`\\BS[1]${state.name}\\BS[0]`);
       })
       .filter(Boolean);
     if (lines.length === 0) return null;
@@ -1523,8 +1731,11 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return lines;
   }
 
-  // TRAIT_ELEMENT_RATE (code 11): same "multiplier, 1 = unchanged" shape as
-  // state rate above, but for incoming elemental damage.
+  /**
+   * Incoming elemental damage adjustments (TRAIT_ELEMENT_RATE, value !== 1).
+   * @param {RPG.Armor} item
+   * @returns {string[]|null}
+   */
   function armorElementRateLines(item) {
     const lines = [];
     for (const trait of item.traits.values()) {
@@ -1566,17 +1777,19 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return lines;
   }
 
-  // Consumable items (potions, food, medical supplies...) don't have a
-  // params array like weapons/armor do - what they do is entirely described
-  // by their effects list. Only the effect types actually asked for are
-  // covered: recover HP/STM, and add/remove state. Anything else on the
-  // item (gain TP, buffs, learn skill, common event, ...) is left out.
+  // ------------------------RECOVERY / STATE EFFECT LINES-----------------------//
+  // Consumable items describe their effects entirely through their effects
+  // list rather than a params array. Only recover HP/STM and add/remove
+  // state are covered; other effect types (gain TP, buffs, learn skill, ...)
+  // are left out.
 
-  // One line per distinct HP/STM recovery amount on the item, combining a
-  // "rate * maxHP/STM" part and a flat part the same way
-  // Game_Action.itemEffectRecoverHp/Mp add them together (js/rmmz_objects.js)
-  // - summing every matching effect first, since maxHP/STM is a constant, so
-  // e.g. two separate +10% HP effects on one item really do add up to +20%.
+  /**
+   * Formats a combined "rate% + flat" recovery/loss amount.
+   * @param {number} rate - fraction of max (e.g. 0.1 for 10%)
+   * @param {number} flat
+   * @param {string} label - e.g. "Health"
+   * @returns {[string, string]|[]} [verb, formatted line], or [] if both are 0
+   */
   function recoverAmountLine(rate, flat, label) {
     const parts = [];
     if (rate) parts.push(`${Math.round(Math.abs(rate) * 100)}%`);
@@ -1584,12 +1797,10 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     if (parts.length === 0) return [];
     const isLoss = rate < 0 || (rate === 0 && flat < 0);
     const verb = isLoss ? 'Lose' : 'Recover';
-    return [
-      `${verb}`,
-      `\\BS[1]${parts.join(' + ')}\\BS[0] \\BI[1]${label}\\BI[0]`,
-    ];
+    return [`${verb}`, `\\BS[1]${parts.join(' + ')}\\BS[0] ${label}`];
   }
 
+  /** Combined "Recover:"/"Lose:" lines for an item's HP/STM effects. @param {RPG.Item} item @returns {string[]} */
   function itemRecoverLines(item) {
     let hpRate = 0,
       hpFlat = 0,
@@ -1634,39 +1845,37 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return combined;
   }
 
-  // Add/remove-state effects, grouped by chance so an item like
-  // "Medic-in-a-jar" that cures two dozen states at 100% each shows one
-  // "Cures: A, B, C, ..." line instead of two dozen near-identical ones.
-  // A state hit by more than one effect on the same item (this project's
-  // database has a few of these, seemingly leftover duplicate entries) uses
-  // the highest chance among them, since that's the true floor on how
-  // likely the state is to land/clear regardless of the redundant rolls.
+  /**
+   * Groups add/remove-state effects by chance into one comma-joined line
+   * per verb (e.g. "Cures: A, B, C"), skipping duplicate effects on the
+   * same state by keeping only the highest chance.
+   * @param {string} verb - e.g. "Inflicts" / "Cures"
+   * @param {Map<number, number>} stateChances - stateId -> chance (0-1)
+   * @returns {string[]}
+   */
   function groupedStateLines(verb, stateChances) {
     const combined = [];
     for (const [stateId, chance] of stateChances) {
       const state = $dataStates[stateId];
-      // iconIndex 0 is the same "no icon" convention Game_BattlerBase's own
-      // allIcons()/stateIcons() already use to decide which states show up
-      // anywhere in the UI - this project has a few purely internal
-      // bookkeeping states built that way (e.g. "usedTonic" on Succulent
-      // Fruit), which have no business appearing in a player-facing tooltip.
+      // iconIndex 0 marks a purely internal/bookkeeping state - skip it,
+      // same convention Game_BattlerBase.allIcons() uses.
       if (!state || state.iconIndex === 0) continue;
       const percent = Math.round(chance * 100);
       const prefix = percent >= 100 ? '' : `${percent}% `;
-      combined.push(`\\BS[1]${prefix}${state.name}\\BS[0]`);
+      combined.push(`\\BS[1]${prefix}\\BS[0] ${state.name}`);
     }
     if (combined.length === 0) return [];
     combined.splice(0, 0, `\\LB[1]${verb}:\\LB[0]`);
     return combined;
   }
 
+  /** Add/remove-state effect lines for an item. @param {RPG.Item} item @returns {string[]} */
   function itemStateEffectLines(item) {
     const addChances = new Map();
     const removeChances = new Map();
     for (const effect of item.effects) {
-      // dataId 0 on EFFECT_ADD_STATE means "whatever states the user's
-      // weapon inflicts on attack" rather than a specific state - nothing
-      // fixed to name here, so it's skipped.
+      // dataId 0 on EFFECT_ADD_STATE means "whatever the user's weapon
+      // inflicts on attack" rather than a specific state - skipped.
       if (effect.code === Game_Action.EFFECT_ADD_STATE && effect.dataId > 0) {
         addChances.set(
           effect.dataId,
@@ -1679,34 +1888,35 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
         );
       }
     }
-    // groupedStateLines() already puts its own header ("\LB[1]Inflicts:\LB[0]")
-    // as element 0, one state name per following element - keep the header on
-    // its own line and comma-join only the actual state names after it,
-    // instead of re-adding a second header and joining it in with the states.
+    // groupedStateLines() returns [header, ...stateNames] - keep the header
+    // on its own line and comma-join the state names after it.
     const inflictions = groupedStateLines('Inflicts', addChances);
     const cures = groupedStateLines('Cures', removeChances);
     const lines = [];
     if (inflictions.length > 0) {
-      lines.push(inflictions[0], inflictions.slice(1).join(', '));
+      lines.push(inflictions[0], `${inflictions.slice(1).join(', ')}`);
     }
     if (cures.length > 0) {
-      lines.push(cures[0], cures.slice(1).join(', '));
+      lines.push(cures[0], `${cures.slice(1).join(', ')}`);
     }
     return lines;
   }
 
-  // Weapon descriptions in this project's database were hand-annotated with
-  // a leading "[Crush]" / "[Makeshift/Slash]" style bracket noting the same
-  // damage type weaponDamageLine() above now derives properly from the
-  // actual trait data - drop it so it doesn't show twice (and doesn't show
-  // a stale/inconsistent damage type if the two ever disagree). Armor
-  // descriptions use a leading bracket for unrelated info (e.g.
-  // "[Accessory]") and are left alone.
+  // -------------------------------FLAVOR TEXT----------------------------------//
+
+  // Strips a hand-written leading "[Crush]"-style bracket from a weapon/item
+  // description, since weaponDamageLine() now derives that from trait data.
+  /** @param {string} text @returns {string} */
   function stripLeadingBracketNote(text) {
     return text.replace(/^\s*\[[^\]]*\]\s*/, '');
   }
-  function grabLeadingBracketNoteForItem(text) {
-    const metaObj = text.meta;
+
+  /** Grab the first WD_Itemsobject from the items 'note',
+   * or try and grab an item type from its bracket in its description.
+   * @param {RPG.Item} item The item database object
+   * @returns {string} The item type */
+  function grabLeadingBracketNoteForItem(item) {
+    const metaObj = item.meta;
     let isMetaTag = false;
     for (const [key, value] of Object.entries(metaObj)) {
       if (
@@ -1717,7 +1927,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       if (isMetaTag) {
         const match = value.match(/\w+/);
         if (match === null) {
-          const type = text.description.match(/\[(?<name>\w*)\]/);
+          const type = item.description.match(/\[(?<name>\w*)\]/);
           if (type === null) return `\\ST[1]Item\\ST[0]`;
           return `\\ST[1]${type.groups.name} Item\\ST[0]`;
         }
@@ -1729,6 +1939,13 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return `\\ST[1]Item\\ST[0]`;
   }
 
+  /**
+   * Flavor text for an item's tooltip: a WauLau_ItemTooltips.json entry if
+   * present, else the item's own database description.
+   * @param {'weapons'|'armors'|'items'} kind
+   * @param {RPG.Item} item
+   * @returns {string}
+   */
   function itemTooltipFlavorText(kind, item) {
     const entry =
       $dataItemTooltips &&
@@ -1743,6 +1960,7 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       : description;
   }
 
+  /** Full tooltip text for a weapon/armor/item row. @param {RPG.BaseItem} item @returns {string|null} */
   function itemTooltipEntryText(item) {
     const kind =
       DataManager.isWeapon(item) ? 'weapons'
@@ -1773,16 +1991,12 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       topLines = itemStateEffectLines(item).concat(itemRecoverLines(item));
     }
     const flavorText = itemTooltipFlavorText(kind, item);
-    //const flavorLines = flavorText ? flavorText.split('\n') : [];
     const statLines = topLines.filter((word) => word !== null);
-    // const bodyLines = statLines.concat(
-    //   statLines.length && flavorLines.length ? [''] : [],
-    //   flavorLines,
-    // );
 
-    return `\\TI[1]${item.name}\\I[${item.iconIndex}]\\TI[0]\n${statLines.join('\n')}\\C[${descColor}]\n\\IT[1]${flavorText}\\IT[0]`;
+    return `\\TI[1]${item.name}\\I[${item.iconIndex}]\\TI[0]\n${statLines.join('\n')}\n\\DE[1]${flavorText}\\DE[0]`;
   }
 
+  /** Builds and renders a weapon/armor/item's tooltip. @param {RPG.BaseItem} item */
   Window_StateTooltip.prototype.setupItem = function (item) {
     this._battler = null;
     this._item = item;
@@ -1791,6 +2005,9 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     this.renderEntries([{ state: null, buff: null, text: text || item.name }]);
   };
 
+  // --------------------------------ESCAPE CODES--------------------------------//
+
+  /** Resolves \TR/\TRT/\SR/\SRT (state) and \BR (buff/debuff) turn/step codes. */
   Window_StateTooltip.prototype.convertEscapeCharacters = function (text) {
     let t = Window_Base.prototype.convertEscapeCharacters.call(this, text);
 
@@ -1802,18 +2019,22 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       if (turnRemain <= 0) turnRemain = '∞';
       t = t.replace(
         /\x1bTRT/gi,
-        turnRemain === 1 ?
-          `${turnRemain} turn remaining`
-        : `${turnRemain} turns remaining`,
+        `\x1bDE[1]${
+          turnRemain === 1 ?
+            `${turnRemain} turn remaining`
+          : `${turnRemain} turns remaining`
+        }\x1bDE[0]`,
       );
       t = t.replace(/\x1bTR/gi, turnRemain);
 
       let stepsRemain = this._state.stepsToRemove;
       t = t.replace(
         /\x1bSRT/gi,
-        turnRemain === 1 ?
-          `${stepsRemain} step remaining`
-        : `${stepsRemain} steps remaining`,
+        `\x1bDE[1]${
+          turnRemain === 1 ?
+            `${stepsRemain} step remaining`
+          : `${stepsRemain} steps remaining`
+        }\x1bDE[0]`,
       );
       t = t.replace(/\x1bSR/gi, stepsRemain);
     }
@@ -1823,92 +2044,271 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
       t = t.replace(/\x1bBR/gi, turnRemain);
       t = t.replace(
         /\x1bTRT/gi,
-        turnRemain === 1 ?
-          `${turnRemain} turn remaining`
-        : `${turnRemain} turns remaining`,
+        `\x1bDE[1]${
+          turnRemain === 1 ?
+            `${turnRemain} turn remaining`
+          : `${turnRemain} turns remaining`
+        }\x1bDE[0]`,
       );
     }
 
-    return `\x1bC[${textColor}]${t}\x1bC[0]`;
+    return t;
   };
 
+  // -------------------------------COLOR MIXER--------------------------------//
+
+  /** Clamps a color channel to 0-255, treating only NaN as invalid input
+   * @param {number} value the value that should be clamped
+   * @param {number} clamp the ceiling of the clamping. Goes from 0 to this value
+   * @returns {number} the input value clamped between a max of the "Clamp" value, or a min of 0
+   * */
+  function clampChannel(value, clamp) {
+    const abs = Math.abs(value);
+    if (Number.isNaN(abs)) return clamp;
+    return abs > clamp ? clamp : abs;
+  }
+
+  /**
+   *
+   * @param {string | number[]} base Base color to mix with in RGB or HEX, if no Alpha value is sent, it will default to 1.
+   * @param {string | number[]} added The added color to mix with in RGB or HEX, if no Alpha value is sent, it will default to 1.
+   * @param {number} ratio The ratio of base color to added color. From 0-1.
+   * @returns {string} A string fornatted as `rgba(r,g,b,a)`
+   */
+
+  function colorMix(base, added, ratio) {
+    if (typeof base === 'string' && base.includes(`#`)) base = hexToRGBA(base);
+    if (typeof added === 'string' && added.includes(`#`))
+      added = hexToRGBA(added);
+    if (!Array.isArray(base) && !typeof base !== 'string') {
+      console.error(
+        `Tried to mix colors with a base color that is not an RGBA or HEX value. Value; ${base}. Using inputted base color ${base}`,
+      );
+      return base;
+    }
+
+    if (!Array.isArray(base) && !typeof base !== 'string') {
+      console.error(
+        `Tried to mix colors with a base color that is not an RGBA or HEX value. Value; ${added}. Using inputted base color ${base}`,
+      );
+      return base;
+    }
+
+    const baseCol = [
+      clampChannel(base[0]),
+      clampChannel(base[1]),
+      clampChannel(base[2]),
+    ];
+    const addedCol = [
+      clampChannel(added[0]),
+      clampChannel(added[1]),
+      clampChannel(added[2]),
+    ];
+
+    ratio = Number.isNaN(Math.abs(ratio)) ? 1 : Math.min(Math.abs(ratio), 1);
+    const ratioBase = ratio;
+    const ratioAdded = 1 - ratio;
+
+    let mix = [];
+    mix[3] =
+      Math.abs(
+        clampChannel(base[3], 1) * ratioBase -
+          clampChannel(added[3], 1) * ratioAdded,
+      ).toFixed(2) || 1;
+
+    mix[0] = Math.round(addedCol[0] * ratioAdded + baseCol[0] * ratioBase); // red
+    mix[1] = Math.round(addedCol[1] * ratioAdded + baseCol[1] * ratioBase); // green
+    mix[2] = Math.round(addedCol[2] * ratioAdded + baseCol[2] * ratioBase); // blue
+    return `rgba(${mix.join(`,`)})`;
+  }
+
+  function hexToRGBA(hex) {
+    const matchRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?$/i;
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+      return r + r + g + g + b + b;
+    });
+
+    var result = matchRegex.exec(hex);
+    const convertedRGB = [
+      parseInt(result[1], 16) || 255,
+      parseInt(result[2], 16) || 255,
+      parseInt(result[3], 16) || 255,
+      parseInt(result[4], 16) / 255 || 1,
+    ];
+    return result ? convertedRGB : null;
+  }
+
+  /**
+   * Get the hex value of the bold outline color. This should only be called when the windowskin is loaded and ready
+   * @param {number} indexn The index of the color to get
+   * @returns {string} Bold Color as HEX
+   */
+  function hexColorMapManager(index) {
+    if (M_hexColorMap.has(index)) return M_hexColorMap.get(index);
+
+    if (index > 31 || index < 0) {
+      console.error(
+        `[LookAtTooltips] Passed a color index outside of the range of 0-31 when trying to convert to hex. Passed index was: ${index}. Returning #ffffff`,
+      );
+      return '#ffffff';
+    }
+
+    const hex = ColorManager.textColor(index);
+
+    M_hexColorMap.set(index, hex);
+
+    return hex;
+  }
+
+  // ------------------------ESCAPE CHARACTER VARIABLES------------------------//
+  // Outline width/color for the fake-bold effect (see FONT-BOLD FIX below) -
+  // set directly here, at the same time as fontBold/color, rather than
+  // derived later from a single shared color when the outline is actually
+  // drawn - so each bold variant's outline matches ITS OWN color (inline/
+  // stat/bold) instead of every \B/\BI/\BS style sharing one outline color.
+  const BOLD_OUTLINE_WIDTH = 4;
+  const NORMAL_OUTLINE_WIDTH = 1;
+  const NORMAL_SPACING_WIDTH = '0px';
+  const BOLD_SPACING_WIDTH = '2px';
+  const NORMAL_OUTLINE_COLOR = 'rgba(0, 0, 0, 0)';
+  const BOLD_OUTLINE_ALPHA = 'ff';
+  const TEXT_SIZE_NORMAL = 20;
+  const TEXT_SIZE_BOLD = TEXT_SIZE_NORMAL;
+  const TEXT_SIZE_LABEL = 24;
+  const TEXT_SIZE_SUBTITLE = 28;
+  const TEXT_SIZE_TITLE = 30;
+  const TEXT_SIZE_DESCRIPTION = 16;
+  let M_hexColorMap = new Map(); //Map containing index colors as hex colors as <Index : Hex>
+
+  /**
+   * Adds this plugin's own bold/italic/color escape codes on top of the
+   * engine's defaults: \BI (bold, inline color), \BS (bold, stat color),
+   * \B (bold, bold color), \IT (italic), \LB (label, +1 font size),
+   * \ST (subtitle, +2 font size), \TI (title, +2 font size).
+   * @param {string} code
+   * @param {object} textState
+   */
   Window_StateTooltip.prototype.processEscapeCharacter = function (
     code,
     textState,
   ) {
     switch (code) {
-      //Bold Inline
       case 'BI': {
         const on = !!this.obtainEscapeParam(textState);
         this.contents.fontBold = on;
         this.processColorChange(on ? inlineColor : textColor);
+        this.contents.outlineWidth =
+          on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH;
+        this.contents.outlineColor =
+          on ?
+            hexColorMapManager(boldOutlineColor)
+            //`${colorMix(`${hexColorMapManager(inlineColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.9)}`
+          : NORMAL_OUTLINE_COLOR;
+        this.contents._context.letterSpacing =
+          on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH;
+        if (on) {
+          this.contents.fontSize = TEXT_SIZE_BOLD;
+        } else {
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
         break;
       }
-      //Bold stat color
       case 'BS': {
         const on = !!this.obtainEscapeParam(textState);
         this.contents.fontBold = on;
         this.processColorChange(on ? statColor : textColor);
+        this.contents.outlineWidth =
+          on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH;
+        this.contents.outlineColor =
+          on ?
+            hexColorMapManager(boldOutlineColor)
+            //`${colorMix(`${hexColorMapManager(statColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.8)}`
+          : NORMAL_OUTLINE_COLOR;
+        this.contents._context.letterSpacing =
+          on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH;
+        if (on) {
+          this.contents.fontSize = TEXT_SIZE_BOLD;
+        } else {
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
         break;
       }
       case 'B': {
         const on = !!this.obtainEscapeParam(textState);
         this.contents.fontBold = on;
         this.processColorChange(on ? boldColor : textColor);
+        this.contents.outlineWidth =
+          on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH;
+        this.contents.outlineColor =
+          on ?
+            hexColorMapManager(boldOutlineColor)
+            //`${colorMix(`${hexColorMapManager(boldColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.8  )}`
+          : NORMAL_OUTLINE_COLOR;
+        this.contents._context.letterSpacing =
+          on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH;
+        if (on) {
+          this.contents.fontSize = TEXT_SIZE_BOLD;
+        } else {
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
         break;
       }
-      //Italic
       case 'IT': {
         this.contents.fontItalic = !!this.obtainEscapeParam(textState);
         break;
       }
-      //Label/accent
       case 'LB': {
         const on = !!this.obtainEscapeParam(textState);
-        this.contents.fontBold = on;
         this.processColorChange(on ? labelColor : textColor);
         this.outlineWidth = 6;
         if (on) {
-          this.makeFontBigger();
+          this.contents.fontSize = TEXT_SIZE_LABEL;
         } else {
-          this.makeFontSmaller();
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
         }
         break;
       }
-
-      //Subtitle
       case 'ST': {
         const on = !!this.obtainEscapeParam(textState);
-        this.contents.fontBold = on;
         this.processColorChange(on ? subtitleColor : textColor);
-        // this.changeOutlineColor(on ? boldColor : textColor);
-        // this.outlineWidth = 8;
         if (on) {
-          this.makeFontBigger();
-          this.makeFontBigger();
+          this.contents.fontSize = TEXT_SIZE_SUBTITLE;
         } else {
-          this.makeFontSmaller();
-          this.makeFontSmaller();
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
         }
         break;
       }
-      //Title
       case 'TI': {
         const on = !!this.obtainEscapeParam(textState);
-        this.contents.fontBold = on;
         this.processColorChange(on ? titleColor : textColor);
-        // this.changeOutlineColor(on ? boldColor : textColor);
-        // this.outlineWidth = 8;
         if (on) {
-          this.makeFontBigger();
-          this.makeFontBigger();
+          this.contents.fontSize = TEXT_SIZE_TITLE;
         } else {
-          this.makeFontSmaller();
-          this.makeFontSmaller();
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
+        break;
+      }
+      case 'DE': {
+        const on = !!this.obtainEscapeParam(textState);
+        this.processColorChange(on ? descColor : textColor);
+        if (on) {
+          this.contents.fontItalic = true;
+          this.contents.fontSize = TEXT_SIZE_DESCRIPTION;
+        } else {
+          this.contents.fontItalic = false;
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
         }
         break;
       }
       default:
+        this.contents.fontBold = false;
+        this.contents.fontItalic = false;
+        this.contents.outlineWidth = NORMAL_OUTLINE_WIDTH;
+        this.contents.outlineColor = NORMAL_OUTLINE_COLOR;
+        this.contents.fontSize = TEXT_SIZE_NORMAL;
         Window_Base.prototype.processEscapeCharacter.call(
           this,
           code,
@@ -1921,23 +2321,22 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     Window_Base.prototype.resetFontSettings.call(this);
     this.contents.fontBold = false;
     this.contents.fontItalic = false;
+    this.contents.outlineWidth = NORMAL_OUTLINE_WIDTH;
+    this.contents.outlineColor = NORMAL_OUTLINE_COLOR;
+    this.contents.fontSize = TEXT_SIZE_NORMAL;
   };
 
-  // Window_Base.prototype.maxFontSizeInLine (js/rmmz_windows.js:424), used by
-  // calcTextHeight() to size each line BEFORE it's drawn, only recognizes
-  // the engine's own \{, \}, and \FS[n] size-changing codes via a hardcoded
-  // regex - it has no idea \TI/\ST/\LB exist, so it always assumes a line
-  // stays at whatever size it already was, then processNewLine() reserves
-  // that (wrong, too-small-or-big) amount of vertical space for it. The
-  // actual drawing is unaffected (processEscapeCharacter above really does
-  // resize the font when it runs), but the gap between lines doesn't match
-  // what got drawn - that mismatch is the extra/missing padding around any
-  // line that changes size with one of this plugin's own codes. Fixed by
-  // reimplementing the same lookahead, but recognizing TI/ST/LB too, with
-  // the exact same size deltas their real cases above apply.
+  // LINE-HEIGHT FIX -----------------------------
+  // The engine's own maxFontSizeInLine only recognizes \{, \}, and \FS[n]
+  // when pre-measuring a line's height, so it doesn't know \TI/\ST/\LB
+  // change size too - lines using them would draw correctly but get the
+  // wrong vertical space reserved around them. Reimplemented here with the
+  // same lookahead, adding TI/ST/LB using the same size deltas
+  // processEscapeCharacter applies above.
+  /** @param {string} line @returns {number} */
   Window_StateTooltip.prototype.maxFontSizeInLine = function (line) {
     let maxFontSize = this.contents.fontSize;
-    const regExp = /\x1b({|}|FS|TI|ST|LB)(\[(\d+)])?/gi;
+    const regExp = /\x1b({|}|FS|TI|ST|LB|DE)(\[(\d+)])?/gi;
     for (;;) {
       const array = regExp.exec(line);
       if (!array) break;
@@ -1949,19 +2348,29 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
         this.makeFontSmaller();
       } else if (code === 'FS') {
         this.contents.fontSize = parseInt(array[3]);
-      } else if (code === 'TI' || code === 'ST') {
+      } else if (code === 'TI') {
         if (on) {
-          this.makeFontBigger();
-          this.makeFontBigger();
+          this.contents.fontSize = TEXT_SIZE_TITLE;
         } else {
-          this.makeFontSmaller();
-          this.makeFontSmaller();
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
+      } else if (code === 'ST') {
+        if (on) {
+          this.contents.fontSize = TEXT_SIZE_TITLE;
+        } else {
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
         }
       } else if (code === 'LB') {
         if (on) {
-          this.makeFontBigger();
+          this.contents.fontSize = TEXT_SIZE_LABEL;
         } else {
-          this.makeFontSmaller();
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
+        }
+      } else if (code === 'DE') {
+        if (on) {
+          this.contents.fontSize = TEXT_SIZE_DESCRIPTION;
+        } else {
+          this.contents.fontSize = TEXT_SIZE_NORMAL;
         }
       }
       if (this.contents.fontSize > maxFontSize) {
@@ -1971,19 +2380,20 @@ DataManager.loadDataFile('$dataItemTooltips', 'WauLau_ItemTooltips.json');
     return maxFontSize;
   };
 
+  // Tooltip window has no scrollbar arrows to draw.
   Window_Scrollable.prototype.updateArrows = function () {};
 
-  // The loaded custom font only registers a single "normal" weight face
-  // (see FontManager.startLoading), so the engine's own Bold-via-CSS-font-
-  // string request has no bold face to fall back on and renders unchanged.
-  // Fake it by drawing the fill text twice with a 1px offset instead.
-  // fontBold is never set true anywhere else in this project, so this is
-  // effectively scoped to this plugin's own tooltip text.
-  const _Bitmap_drawTextBody = Bitmap.prototype._drawTextBody;
-  Bitmap.prototype._drawTextBody = function (text, tx, ty, maxWidth) {
-    _Bitmap_drawTextBody.call(this, text, tx, ty, maxWidth);
-    //        if (this.fontBold) {
-    //            _Bitmap_drawTextBody.call(this, text, tx + 1, ty, maxWidth)
-    //        }
-  };
+  // FONT-BOLD FIX -----------------------------
+  // The loaded custom font only registers a "normal" weight, so a plain
+  // fontBold request has no bold face to fall back on - bold is faked with
+  // a heavier, color-matched outline instead. outlineWidth/outlineColor are
+  //directly in processEscapeCharacter/resetFontSettings above (at the
+  // same time as fontBold), so the vanilla engine's own _drawTextOutline
+  // already picks them up correctly - no Bitmap-level patch needed.
 })();
+
+// Color reference notes:
+// #C2D5FB - item Color ingame
+// #DCEDD4 - item Color[0]
+// #D8EBCF - Item outlinecolor ingame
+// #D8EBCF - state color and outline color
