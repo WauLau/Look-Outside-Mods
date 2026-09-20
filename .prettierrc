@@ -1,0 +1,39 @@
+{
+    "semi": false,
+    "overrides": [
+        {
+            "files": "*.json",
+            "options": {
+                "trailingComma": "es5",
+                "tabWidth": 4,
+                "semi": false,
+                "singleQuote": true,
+                "bracketSpacing": true,
+                "objectWrap": "preserve"
+            }
+        },
+        {
+            "files": [
+                "*.js",
+                "*.tsx"
+            ],
+            "options": {
+                "trailingComma": "es5",
+                "tabWidth": 4,
+                "semi": false,
+                "singleQuote": false,
+                "jsxSingleQuote": false,
+                "experimentalTernaries": true,
+                "bracketSpacing": true,
+                "objectWrap": "collapse",
+                "bracketSameLine": true
+            }
+        },
+        {
+            "files": ".prettierrc",
+            "options": {
+                "parser": "json"
+            }
+        }
+    ]
+}

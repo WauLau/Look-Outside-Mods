@@ -38485,41 +38485,16 @@
                     },
                     "list": [
                         {
-                            "code": 111,
+                            "code": 283,
                             "indent": 0,
                             "parameters": [
-                                1,
-                                16,
-                                0,
-                                18,
-                                1
+                                "Back_CafeCounter",
+                                ""
                             ]
                         },
                         {
-                            "code": 241,
-                            "indent": 1,
-                            "parameters": [
-                                {
-                                    "name": "MuttsFishAndChips_VaporWave",
-                                    "volume": 90,
-                                    "pitch": 100,
-                                    "pan": 0
-                                }
-                            ]
-                        },
-                        {
-                            "code": 0,
-                            "indent": 1,
-                            "parameters": []
-                        },
-                        {
-                            "code": 411,
+                            "code": 132,
                             "indent": 0,
-                            "parameters": []
-                        },
-                        {
-                            "code": 241,
-                            "indent": 1,
                             "parameters": [
                                 {
                                     "name": "MuttsFishAndChips",
@@ -38527,24 +38502,6 @@
                                     "pitch": 100,
                                     "pan": 0
                                 }
-                            ]
-                        },
-                        {
-                            "code": 0,
-                            "indent": 1,
-                            "parameters": []
-                        },
-                        {
-                            "code": 412,
-                            "indent": 0,
-                            "parameters": []
-                        },
-                        {
-                            "code": 283,
-                            "indent": 0,
-                            "parameters": [
-                                "Back_CafeCounter",
-                                ""
                             ]
                         },
                         {
@@ -38596,7 +38553,7 @@
                             "indent": 0,
                             "parameters": [
                                 {
-                                    "name": "Tension_VaporWave",
+                                    "name": "Tension",
                                     "volume": 90,
                                     "pitch": 100,
                                     "pan": 0

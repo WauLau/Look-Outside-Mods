@@ -2864,32 +2864,6 @@
                             "parameters": []
                         },
                         {
-                            "code": 242,
-                            "indent": 0,
-                            "parameters": [
-                                4
-                            ]
-                        },
-                        {
-                            "code": 230,
-                            "indent": 0,
-                            "parameters": [
-                                240
-                            ]
-                        },
-                        {
-                            "code": 241,
-                            "indent": 0,
-                            "parameters": [
-                                {
-                                    "name": "Friendship_VaporWave",
-                                    "volume": 90,
-                                    "pitch": 100,
-                                    "pan": 0
-                                }
-                            ]
-                        },
-                        {
                             "code": 121,
                             "indent": 0,
                             "parameters": [

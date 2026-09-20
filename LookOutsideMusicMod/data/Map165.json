@@ -4525,13 +4525,6 @@
                             ]
                         },
                         {
-                            "code": 242,
-                            "indent": 0,
-                            "parameters": [
-                                4
-                            ]
-                        },
-                        {
                             "code": 355,
                             "indent": 0,
                             "parameters": [
@@ -4542,19 +4535,7 @@
                             "code": 230,
                             "indent": 0,
                             "parameters": [
-                                240
-                            ]
-                        },
-                        {
-                            "code": 241,
-                            "indent": 0,
-                            "parameters": [
-                                {
-                                    "name": "Promise_VaporWave",
-                                    "volume": 90,
-                                    "pitch": 100,
-                                    "pan": 0
-                                }
+                                60
                             ]
                         },
                         {

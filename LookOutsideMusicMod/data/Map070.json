@@ -9199,7 +9199,7 @@
         },
         {
             "id": 18,
-            "name": "ShadowMan",
+            "name": "Shadow Man",
             "note": "",
             "pages": [
                 {
@@ -30966,7 +30966,6 @@
             ],
             "x": 2,
             "y": 0
-        },
-        null
+        }
     ]
 }
