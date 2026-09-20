@@ -1,31 +1,56 @@
+#### PLUGIN MODS ####
 # Unused folders
-game/audio
-game/css
-game/effects
-game/fonts
-game/icon
-game/img
-game/lib
-game/locales
-game/movies
-game/save
-game/swiftshader
+LookOutsidePluginMods/audio
+LookOutsidePluginMods/css
+LookOutsidePluginMods/effects
+LookOutsidePluginMods/fonts
+LookOutsidePluginMods/icon
+LookOutsidePluginMods/img
+LookOutsidePluginMods/lib
+LookOutsidePluginMods/locales
+LookOutsidePluginMods/movies
+LookOutsidePluginMods/save
+LookOutsidePluginMods/swiftshader
 
 # Unused files
-game/*
+LookOutsidePluginMods/*
 
 # Project Files
-game/js/*
-!game/js
-!game/js/plugins.js
-game/js/plugins/*
-!game/js/plugins
-!game/js/plugins/WauLau*
-!game/js/plugins/MOD_*
+LookOutsidePluginMods/js/*
+!LookOutsidePluginMods/js
+!LookOutsidePluginMods/js/plugins.js
+LookOutsidePluginMods/js/plugins/*
+!LookOutsidePluginMods/js/plugins
+!LookOutsidePluginMods/js/plugins/WauLau*
+!LookOutsidePluginMods/js/plugins/MOD_*
+LookOutsidePluginMods/data/*
+!LookOutsidePluginMods/data
+!LookOutsidePluginMods/data/WauLau*
 
+#### Music Mod ####
+# Unused folders
+LookOutsideMusicMod/audio/*
+LookOutsideMusicMod/js
+LookOutsideMusicMod/css
+LookOutsideMusicMod/effects
+LookOutsideMusicMod/fonts
+LookOutsideMusicMod/icon
+LookOutsideMusicMod/img
+LookOutsideMusicMod/lib
+LookOutsideMusicMod/locales
+LookOutsideMusicMod/movies
+LookOutsideMusicMod/save
+LookOutsideMusicMod/swiftshader
 
-game/data/*
-!game/data
-!game/data/WauLau*
+# Unused files
+LookOutsideMusicMod/*
 
+# Project Files
+!LookOutsideMusicMod/data
+!LookOutsideMusicMod/audio
+!LookOutsideMusicMod/audio/bgm
+LookOutsideMusicMod/audio/bgm/*.ogg
+LookOutsideMusicMod/audio/bgm/*.ogg_
+!LookOutsideMusicMod/audio/bgm/*_VaporWave.ogg
+!LookOutsideMusicMod/audio/bgm/*_HorrorOST.ogg
 

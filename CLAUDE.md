@@ -12,6 +12,14 @@ There is no package manager, build step, linter, or test suite. This is not a No
 - Editing plugin JS in `js/plugins/*.js`.
 - Playtesting via `Game.exe` (the bundled nw.js runtime reads `index.html` → `js/main.js`).
 
+**Path note:** every `js/...` and `data/...` path in this file (including the Architecture section below) is relative to whichever of the two project directories below you're working in — e.g. `LookOutsidePluginMods/js/plugins/bunchastuff.js` — never relative to the repo root itself. The repo root has no `js/` directory of its own.
+
+### Project Structure
+
+To make modding easier, the different kinds of mods the user makes are split into separate full copies of the game, each with its own `game.rmmzproject`, `js/`, and `data/`. This way, editing and testing one mod does not impact the other. For example, the "Soundtrack Mod" (`/LookOutsideMusicMod`) edits a lot of data files that should stay vanilla/unchanged in the plugin/js-oriented mod. You can likely infer which project the user means from context, but always ask or double-check if there's uncertainty.
+
+- `/LookOutsideMusicMod` — a mod to change the game's music. Extra audio files are added to this project's `/audio`. Requires a lot of changes to files in `/data`, and knowledge of variables/switches. Changes to the JavaScript files are highly unlikely here.
+- `/LookOutsidePluginMods` — contains all the mods that are plugins (coding-focused). The data files here are likely modified for ease of testing; the actual focus is writing the JavaScript plugins for RPG Maker.
 ## Architecture
 
 ### Engine layer (do not modify)
@@ -34,6 +42,26 @@ sVr(varId, val)      // $gameVariables.setValue(varId, val)
 ```
 
 These are defined redundantly in multiple plugin files (e.g. `bunchastuff.js`, `DeepBasement.js`, `Scriptset2.js`). When adding new custom logic, follow this convention rather than calling the engine APIs directly, and be aware switch/variable IDs are magic numbers tied to `data/System.json` — cross-check IDs there before reusing or repurposing one.
+
+Two generated lookup tables at the repo root help with this cross-checking: `id-lookup.md` (event command codes, e.g. 121 = Control Switches, 132 = Change Battle BGM) and `map-id-lookup.md` (map ID → name/folder path, regenerated via `scripts/gen-map-lookup.js`). Both were generated against a pre-split layout — verify paths still resolve before trusting them, and regenerate `map-id-lookup.md` if map IDs look off.
+
+### Verifying plugin JS edits
+There's no build step, but `node --check js/plugins/<File>.js` still catches syntax errors before playtesting — run it after every edit to a plugin file.
+
+### RPG Maker MZ text-rendering gotchas (relevant to any custom escape-code/font plugin)
+- Custom loaded fonts here register only a "normal" weight face (`FontManager.startLoading` in `rmmz_managers.js` calls `new FontFace()` with no style/weight descriptor) — a plain `fontBold`/CSS bold request has no bold face to render with, so bold must be faked (e.g. a heavier outline).
+- `Bitmap.prototype.drawText` strokes the outline (`_drawTextOutline`) *before* filling the body (`_drawTextBody`); any font-state-dependent Bitmap patch must live in `_drawTextOutline`, or the effect lags one flushed text chunk behind.
+- Window text drawing batches characters between escape codes into one `drawText` call per flush, applying a closing code (e.g. `\B[0]`) only *after* that flush — reason in terms of flushed chunks, not characters, when writing custom escape codes.
+- `ColorManager.textColor(n)` reads a pixel from `ColorManager._windowskin`, which isn't loaded yet when a plugin file is first parsed — never call it from a plugin's top-level `const`; compute colors lazily and cache on first real use.
+
+### IDE navigability for scene/window patches
+Installing methods via `sceneProto.foo = function(){}` where `sceneProto` is a passed-in parameter breaks "Go to Definition"/"Find References" in VSCode, since TS only tracks the literal `ClassName.prototype.foo = function(){}` pattern. Write that literally (a thin wrapper delegating to a shared function is fine) whenever navigability matters.
+
+### Comment style for custom mod scripts
+Preferred convention (established on `WauLau_LookAtTooltips.js`): `//===...===//` banners for major sections, `//---...---//` for subsections, a short labeled callout (`// LABEL -----`) for load-bearing gotchas/injection points, and JSDoc blocks for function params/returns. Avoid narrative "why I changed this" comments — describe current behavior, not edit history.
+
+### Live co-editing
+The user often hand-edits plugin files in the IDE while Claude is also editing them in the same session — an edit can be silently reverted by a concurrent save. Re-read a file before trusting a prior view of it, and re-run `node --check` after edits land.
 
 ### `redact.js` — release sanitization script
 Gated behind `Utils.isOptionValid("test")`, so it only runs when the game is launched with a `--test` flag (editor playtest mode). It rewrites `data/MapInfos.json`/`CommonEvents.json` (stripping `name`/`expanded` fields) and `data/System.json` (blanking switch/variable names, enabling audio/image encryption) into `*_new.json` sanitized copies — this is a pre-release step to strip developer-facing labels and internal names before shipping, not something that runs during normal play. Be careful not to trigger or rely on this when just testing gameplay changes.

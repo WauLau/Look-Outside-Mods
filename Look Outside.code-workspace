@@ -2,6 +2,10 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"name": "Original Game Files",
+			"path": "/Users/laugantriis/Library/Application Support/CrossOver/Bottles/Steam/drive_c/Program Files (x86)/Look Outside Backup"
 		}
 	],
 	"settings": {}
