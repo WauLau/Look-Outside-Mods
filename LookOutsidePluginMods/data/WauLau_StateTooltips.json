@@ -1,0 +1,2092 @@
+{
+    "states": {
+        "1": {
+            "name": "Unconscious",
+            "text": [
+                "\\B[1]Dead:\\B[0] Entity is dead",
+                "\\B[1]No Heal:\\B[0] Cannot be healed",
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Dumb:\\B[0] Cannot receive EXP from battle."
+            ]
+        },
+        "2": {
+            "name": "Guard",
+            "text": [
+                "\\B[1]Guarded:\\B[0] -50% damage taken",
+                "\\TRT"
+            ]
+        },
+        "4": {
+            "name": "Poison",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.06} HP",
+                "\\TRT"
+            ]
+        },
+        "5": {
+            "name": "Blind",
+            "text": [
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.5} Hit Rate",
+                "\\TRT"
+            ]
+        },
+        "6": {
+            "name": "Panic",
+            "text": [
+                "\\B[1]Unskilled:\\B[0] Cannot use non-ranged \"Special\" skills",
+                "\\TRT"
+            ]
+        },
+        "7": {
+            "name": "Rage",
+            "text": [
+                "\\B[1]Vulnerable:\\B[0] Vulnerability doubled for Blind, Panic, Confusion, Charm, Sleep, Stun and Paralysis",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit Rate",
+                "\\B[1]Removal:\\B[0] 20% chance to remove status on damage",
+                "\\TRT"
+            ]
+        },
+        "8": {
+            "name": "Confusion",
+            "text": [
+                "\\B[1]Confused:\\B[0] Attacks target a random enemy or party member",
+                "\\B[1]Removal:\\B[0] 50% chance to remove status on damage",
+                "\\TRT"
+            ]
+        },
+        "9": {
+            "name": "Charm",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit Rate",
+                "\\B[1]Removal:\\B[0] 50% chance to remove status on damage",
+                "\\TRT"
+            ]
+        },
+        "10": {
+            "name": "Sleep",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Lethargic:\\B[0] -100% Evasion",
+                "\\B[1]Removal:\\B[0] 60% chance to remove status on damage",
+                "\\TRT"
+            ]
+        },
+        "11": {
+            "name": "Bleed1",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.04} HP",
+                "\\TRT"
+            ]
+        },
+        "12": {
+            "name": "Bleed2",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.08} HP",
+                "\\TRT"
+            ]
+        },
+        "13": {
+            "name": "Bleed3",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.16} HP",
+                "\\TRT"
+            ]
+        },
+        "14": {
+            "name": "Paralysis",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Lethargic:\\B[0] Evasion is 0",
+                "\\B[1]Immunity:\\B[0]: Immune to paralysis",
+                "\\TRT"
+            ]
+        },
+        "15": {
+            "name": "Stun",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Lethargic:\\B[0] -100% Evasion",
+                "\\TRT"
+            ]
+        },
+        "16": {
+            "name": "Burn",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.1} HP",
+                "\\TRT"
+            ]
+        },
+        "17": {
+            "name": "Acid",
+            "text": [
+                "\\B[1]Exposed:\\B[0] -{def * 0.5} Defense & -{def * 0.5} Bullet Defense",
+                "\\B[1]Frail:\\B[0] +25% Damage taken",
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.02} HP",
+                "\\TRT"
+            ]
+        },
+        "18": {
+            "name": "Pain",
+            "text": [
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit Rate",
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.1} HP",
+                "\\TRT"
+            ]
+        },
+        "19": {
+            "name": "Protect",
+            "text": [
+                "Deflects attacks made against party members onto yourself.",
+                "\\TRT"
+            ]
+        },
+        "20": {
+            "name": "Provoke",
+            "text": [
+                "\\B[1]Prey:\\B[0] +900% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "22": {
+            "name": "Counter Attack",
+            "text": [
+                "\\B[1]Retaliator:\\B[0] +100% Counter attack",
+                "\\TRT"
+            ]
+        },
+        "23": {
+            "name": "Drowsy",
+            "text": [
+                "\\B[1]Vulnerable:\\B[0] +400% chance to Sleep",
+                "\\B[1]Drowsy:\\B[0] Applies Sleep immediately upon wearing off.",
+                "\\TRT"
+            ]
+        },
+        "24": {
+            "name": "Fear",
+            "text": [
+                "\\B[1]Vulnerable:\\B[0] Vulnerability doubled for Panic, Rage, Confusion and Charm",
+                "\\B[1]Inaccurate:\\B[0] -{atk * 0.5} Attack",
+                "\\B[1]Removal:\\B[0] Lasts until you return home"
+            ]
+        },
+        "25": {
+            "name": "Spore Poison",
+            "text": [
+                "\\B[1]Per turn:\\B[0] Lose {hp * 0.07} hp",
+                "\\TRT"
+            ]
+        },
+        "26": {
+            "name": "markedEnemy",
+            "text": [
+                "\\B[1]Prey:\\B[0] 1000% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "27": {
+            "name": "dmgOvrTimeResist",
+            "text": [
+                "Hidden attribute that gives resistance to damage over time status effects."
+            ]
+        },
+        "31": {
+            "name": "Frozen",
+            "text": [
+                "",
+                "\\B[1]Clumsy:\\B[0] -{eva * 1} Evasion",
+                "\\B[1]Exposed:\\B[0] -{def * 0.5} Def &-{mdef * 0.5} B.Def",
+                "\\B[1]Frail:\\B[0] +25% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "32": {
+            "name": "Fizzy Drink",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
+                "\\B[1]Lucky:\\B[0] +{luk * 0.2} Luck",
+                "\\B[1]Removal:\\B[0]: End of battle",
+                "\\TRT"
+            ]
+        },
+        "35": {
+            "name": "Rested",
+            "text": [
+                "\\B[1]Vigor:\\B[0] +{maxhp * 0.25} Max HP",
+                "\\B[1]Revitalized:\\B[0] +{mstm * 0.25} Max STM",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.1} Attack",
+                "\\B[1]Bulwark:\\B[0] +{def * 0.1} Defense",
+                "\\B[1]Quick:\\B[0] +{agi * 0.1} Agility",
+                "\\TRT"
+            ]
+        },
+        "36": {
+            "name": "On Break",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Per Turn:\\B[0] Recover {maxhp * 0.3} HP and {mstm * 0.3} STM",
+                "\\B[1]Stout:\\B[0] -25% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "37": {
+            "name": "Mad",
+            "text": [
+                "\\B[1]Confused:\\B[0] Attacks an enemy or party member randomly",
+                "\\TRT"
+            ]
+        },
+        "38": {
+            "name": "Recorded",
+            "text": [
+                "Target's last action is recorded and copied three times consecutively by the user.",
+                "\\TRT"
+            ]
+        },
+        "40": {
+            "name": "Far",
+            "text": [
+                "\\B[1]Nimble:\\B[0] +{eva * 0.2} Evasion rate",
+                "\\B[1]Powerful:\\B[0] +{batk * 0.1} Ballistics/magic evasion",
+                "\\B[1]Stout:\\B[0] -20% Crushing, Slashing, or Piercing Damage taken"
+            ]
+        },
+        "42": {
+            "name": "Vulnerable",
+            "text": [
+                "\\B[1]Lethargic:\\B[0] -{cev * 0.5} Critical hit evasion",
+                "\\B[1]Frail:\\B[0] 200% Physical Damage taken"
+            ]
+        },
+        "46": {
+            "name": "Hungry",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.25} Max HP"
+            ]
+        },
+        "47": {
+            "name": "Starving",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.5} Max HP",
+                "\\B[1]Weak:\\B[0] -{atk * 0.25} Attack & -{batk * 0.25} Ballistics",
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.02} HP"
+            ]
+        },
+        "48": {
+            "name": "Smelly",
+            "text": [
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.5} Luck",
+                "\\B[1]Vulnerable:\\B[0] +50% chance to be affected by Poison, Blind, Panic, Rage, Confusion, Sleep, Bleed1, Bleed3, or Bleed2"
+            ]
+        },
+        "49": {
+            "name": "Tired",
+            "text": [
+                "\\B[1]Exhausted:\\B[0] -{mstm * 0.25} Max STM"
+            ]
+        },
+        "50": {
+            "name": "Exhausted",
+            "text": [
+                "\\B[1]Exhausted:\\B[0] -{mstm * 0.5} Max STM",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.25} Agility",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Evasion rate",
+                "\\B[1]Per Turn:\\B[0] Lose -{mstm * 0.05} STM"
+            ]
+        },
+        "51": {
+            "name": "Listless",
+            "text": [
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.25} Hit rate & -{cri * 0.25} Critical hit rate"
+            ]
+        },
+        "52": {
+            "name": "Lonely",
+            "text": [
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Evasion & -{eva * 0.25} Critical hit evasion",
+                "\\B[1]Weak:\\B[0] -{batk * 0.25} Ballistics/magic evasion"
+            ]
+        },
+        "53": {
+            "name": "Depressed",
+            "text": [
+                "\\B[1]Frail:\\B[0] +50% Physical Damage taken"
+            ]
+        },
+        "56": {
+            "name": "Puppet",
+            "text": [
+                "Unconscious party member is forced to attack its party members.",
+                "\\B[1]Removal:\\B[0] Removed at battle end.",
+                "\\TRT"
+            ]
+        },
+        "57": {
+            "name": "Spore",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.05}hp",
+                "\\TRT"
+            ]
+        },
+        "58": {
+            "name": "Constrict",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.5} Attack & -{batk * 0.5} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.5} Hit Rate",
+                "\\B[1]Per Turn:\\B[0] Lose {maxhp * 0.1}hp",
+                "\\B[1]Removal:\\B[0] Lasts until end of battle"
+            ]
+        },
+        "59": {
+            "name": "Infection",
+            "text": [
+                "\\B[1]Infection:\\B[0] Does nothing by itself",
+                "\\B[1]Sickly:\\B[0] Becomes disease next day if not treated"
+            ]
+        },
+        "60": {
+            "name": "Disease 1",
+            "text": [
+                " \\B[1]Disease:\\B[0] -20% to all stats",
+                "-{maxhp * 0.2} MaxHP & -{maxmp * 0.2} MaxSTM",
+                "-{atk * 0.2} Attack & -{matk * 0.2} Ballistics",
+                "-{def * 0.2} Defense & -{mdef * 0.2} B. Defense",
+                "-{agi * 0.2} Agility",
+                "-{luck * 0.2} Luck",
+                "\\B[1]Sickly:\\B[0] Chance to worsen disease is increased"
+            ]
+        },
+        "61": {
+            "name": "Disease 2",
+            "text": [
+                "\\B[1]Disease:\\B[0] -40% to all stats",
+                "-{maxhp * 0.4} MaxHP & -{maxmp * 0.4} MaxSTM",
+                "-{atk * 0.4} Attack & -{matk * 0.4} Ballistics",
+                "-{def * 0.4} Defense & -{mdef * 0.4} B. Defense",
+                "-{agi * 0.4} Agility",
+                "-{luck * 0.4} Luck",
+                "\\B[1]Sickly:\\B[0] Chance to worsen disease is increased"
+            ]
+        },
+        "62": {
+            "name": "Disease 3",
+            "text": [
+                "\\B[1]Disease:\\B[0] -10% to all stats",
+                "-{maxhp * 0.1} MaxHP & -{maxmp * 0.1} MaxSTM",
+                "-{atk * 0.1} Attack & -{matk * 0.1} Ballistics",
+                "-{def * 0.1} Defense & -{mdef * 0.1} B. Defense",
+                "-{agi * 0.1} Agility",
+                "-{luck * 0.1} Luck"
+            ]
+        },
+        "63": {
+            "name": "Gamma Rays",
+            "text": [
+                "Lose 50% of remaining HP after turn.",
+                "\\B[1]Deteriorated:\\B[0] Healing and recovery effects are reduced by 50%.",
+                "\\TRT"
+            ]
+        },
+        "64": {
+            "name": "FallWound",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.2} Max HP",
+                "\\B[1]Exhausted:\\B[0] -{mstm * 0.2} Max STM",
+                "\\B[1]Weak:\\B[0] -{atk * 0.4} Attack",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.4} Agility"
+            ]
+        },
+        "65": {
+            "name": "FallWoundRecover",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.1} Max HP",
+                "\\B[1]Exhausted:\\B[0] -{mstm * 0.1} Max STM",
+                "\\B[1]Weak:\\B[0] -{atk * 0.2} Attack",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility"
+            ]
+        },
+        "66": {
+            "name": "Biting Armor",
+            "text": [
+                "\\B[1]Regenerate:\\B[0] Recover {mhp * 0.05} HP at the end of turn",
+                "\\TRT"
+            ]
+        },
+        "67": {
+            "name": "Stalked",
+            "text": [
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Critical hit evasion",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Evasion rate",
+                "\\B[1]Exposed:\\B[0] -{def * 0.25} Defense",
+                "\\B[1]Removal:\\B[0] Removed at battle end",
+                "\\TRT"
+            ]
+        },
+        "68": {
+            "name": "Unmasked",
+            "text": [
+                "\\B[1]Weird:\\B[0] Attacks have +20% chance to inflict Confusion",
+                "\\B[1]Exposed:\\B[0] -{def * 0.5} Defense & -{def * 0.25} Bullet Defense",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.4} Attack",
+                "\\B[1]Removal:\\B[0] Removed at battle end or Hide Face skill is used."
+            ]
+        },
+        "69": {
+            "name": "Soulless",
+            "text": [
+                "\\B[1]Soulless:\\B[0] All stats permanently reduced by 20%.",
+                "-{maxhp * 0.2} Max HP",
+                "-{mstm * 0.2} Max STM",
+                "-{atk * 0.2} Attack",
+                "-{def * 0.2} Defense",
+                "-{batk * 0.2} Ballistics",
+                "-{def * 0.2} Bullet Defense",
+                "-{agi * 0.2} Agility",
+                "-{luk * 0.2} Luck"
+            ]
+        },
+        "70": {
+            "name": "Grinning Beast",
+            "text": [
+                "\\B[1]Claws:\\B[0] Replaces melee attack with Claw.",
+                "\\B[1]Stout:\\B[0] -50% Damage taken",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Per turn:\\B[0] Lose -{mstm * 0.05} STM",
+                "\\B[1]Vulnerable:\\B[0] Tripled chance to be affected by Confusion",
+                "\\B[1]Resistant:\\B[0]  Half chance to be affected by Stun",
+                "\\TRT"
+            ]
+        },
+        "71": {
+            "name": "Bloodlust",
+            "text": [
+                "\\B[1]Confused:\\B[0] Attacks both friends or foes randomly. Prevented if user is equipped with Martin's Ring.",
+                "\\TRT"
+            ]
+        },
+        "72": {
+            "name": "Gummed up",
+            "text": [
+                "\\B[1]Regenerate:\\B[0] Recover {mhp * 0.05} HP at the end of turn",
+                "\\TRT"
+            ]
+        },
+        "75": {
+            "name": "Life Regen",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {maxhp * 0.1} HP",
+                "\\TRT"
+            ]
+        },
+        "76": {
+            "name": "Stam Regen",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mstm * 0.1} STM",
+                "\\TRT"
+            ]
+        },
+        "77": {
+            "name": "Mycelium",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.1} HP & {mstm * 0.05} Stamina.",
+                "\\TRT"
+            ]
+        },
+        "78": {
+            "name": "Ground Anchor",
+            "text": [
+                "Takes damage for party members that are at critical HP.",
+                "\\B[1]Powerful:\\B[0] +{batk * 0.5} Ballistics",
+                "\\B[1]Weak:\\B[0] Damage dealt is halved",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.9} Agility",
+                "\\TRT"
+            ]
+        },
+        "79": {
+            "name": "maxStamina+50%",
+            "text": [
+                "\\B[1]Fresh:\\B[0] +{mstm * 1} Max STM"
+            ]
+        },
+        "80": {
+            "name": "attack+25%",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack & +{batk * 0.25} Ballistics"
+            ]
+        },
+        "81": {
+            "name": "attack+50%",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack & \\B[1]Powerful:\\B[0] +{batk * 0.5} Ballistics"
+            ]
+        },
+        "82": {
+            "name": "attack+100%",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 1} Attack & +{batk * 1} Ballistics"
+            ]
+        },
+        "83": {
+            "name": "defense+25%",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{def * 0.25} Defense",
+                "+{def * 0.25} Bullet Defense"
+            ]
+        },
+        "84": {
+            "name": "defense+50%",
+            "text": [
+                "+{def * 0.5} Defense",
+                "+{def * 0.5} Bullet Defense"
+            ]
+        },
+        "85": {
+            "name": "defense+100%",
+            "text": [
+                "+{def * 1} Defense",
+                "+{def * 1} Bullet Defense"
+            ]
+        },
+        "86": {
+            "name": "maxLife+25%",
+            "text": [
+                "+{maxhp * 0.25} Max HP"
+            ]
+        },
+        "87": {
+            "name": "maxLife+50%",
+            "text": [
+                "+{maxhp * 0.5} Max HP"
+            ]
+        },
+        "88": {
+            "name": "maxLife+100%",
+            "text": [
+                "+{maxhp * 1} Max HP"
+            ]
+        },
+        "89": {
+            "name": "lifeRegen+5%",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP"
+            ]
+        },
+        "90": {
+            "name": "lifeRegen+10%",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.1} HP"
+            ]
+        },
+        "91": {
+            "name": "lifeRegen+15%",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.15} HP"
+            ]
+        },
+        "93": {
+            "name": "dodge+10%",
+            "text": [
+                "\\B[1]Nimble:\\B[0] +{eva * 0.1} Evasion rate"
+            ]
+        },
+        "94": {
+            "name": "dodge+20%",
+            "text": [
+                "\\B[1]Nimble:\\B[0] +{eva * 0.2} Evasion rate"
+            ]
+        },
+        "95": {
+            "name": "dodge+40%",
+            "text": [
+                "\\B[1]Nimble:\\B[0] +{eva * 0.4} Evasion rate"
+            ]
+        },
+        "96": {
+            "name": "attack-25%",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.25} Attack",
+                "\\B[1]Weak:\\B[0] -{batk * 0.25} Ballistics"
+            ]
+        },
+        "97": {
+            "name": "defense-25%",
+            "text": [
+                "\\B[1]Shielded:\\B[0] -{def * 0.25} Defense & -{def * 0.25} Bullet Defense"
+            ]
+        },
+        "98": {
+            "name": "maxLife-25%",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.25} Max HP"
+            ]
+        },
+        "99": {
+            "name": "physResist+25%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -25% Physical damage"
+            ]
+        },
+        "100": {
+            "name": "physResist+50%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] Physical Damage is Halved"
+            ]
+        },
+        "101": {
+            "name": "physResist+90%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -90% Physical damage"
+            ]
+        },
+        "102": {
+            "name": "gunResist+25%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -25% Ballistic damage"
+            ]
+        },
+        "103": {
+            "name": "gunResist+50%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] Ballistic damage is Halved"
+            ]
+        },
+        "104": {
+            "name": "gunResist+90%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -90% Ballistic damage"
+            ]
+        },
+        "105": {
+            "name": "lifeRegen+2%",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.02} HP"
+            ]
+        },
+        "106": {
+            "name": "DOT Resist+50%",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -50% chance to be affected by Damage over time"
+            ]
+        },
+        "107": {
+            "name": "Roach Shield",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -50% Damage taken"
+            ]
+        },
+        "108": {
+            "name": "Swarm",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.02} HP",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.25} Hit rate",
+                "\\TRT"
+            ]
+        },
+        "110": {
+            "name": "Good Dan",
+            "text": [
+                "Enables access to Dan's Calm Skills."
+            ]
+        },
+        "111": {
+            "name": "Bad Dan",
+            "text": [
+                "Enables access to Dan's Irate Skills."
+            ]
+        },
+        "112": {
+            "name": "Bless",
+            "text": [
+                "Affects the whole party",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.15} Attack & +{batk * 0.15} Ballistics",
+                "\\B[1]Marksman:\\B[0] +{hit * 0.1} Hit rate",
+                "\\TRT"
+            ]
+        },
+        "113": {
+            "name": "Protection",
+            "text": [
+                "\\B[1]Shielded:\\B[0] +{def * 0.5} Defense & +{def * 0.5} Bullet Defense",
+                "\\TRT"
+            ]
+        },
+        "115": {
+            "name": "Copy Dad",
+            "text": [
+                "User will copy the last move Sam made every turn, in addition to its regular action. The effect lasts 4-6 turns.",
+                "\\TRT"
+            ]
+        },
+        "116": {
+            "name": "Overdrive",
+            "text": [
+                "\\B[1]Action Surge:\\B[0] Gain 1-4 extra actions on use.",
+                "\\TRT"
+            ]
+        },
+        "117": {
+            "name": "Freak Out",
+            "text": [
+                "\\B[1]Haywire:\\B[0] Loses control and attacks random enemies.",
+                "\\B[1]Action Surge:\\B[0] Attack one extra time per turn.",
+                "\\B[1]Sharpshooter:\\B[0] +{cri * 0.15} Critical Hit rate",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack & +{batk * 0.25} Ballistics",
+                "\\B[1]Sharpshooter:\\B[0] +{cri * 0.15} Critical hit rate",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.1} Hit rate",
+                "+25% chance to inflict Panic on attacks",
+                "\\TRT"
+            ]
+        },
+        "118": {
+            "name": "Nausea",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.05} HP",
+                "\\B[1]Powerful:\\B[0] +{batk * 0.25} Ballistics & +{atk * 0.25} Attack",
+                "\\TRT"
+            ]
+        },
+        "119": {
+            "name": "Soothe",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.05} HP",
+                "\\B[1]Powerful:\\B[0] +{batk * 0.25} Ballistics & +{atk * 0.25} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Freak Out",
+                "\\TRT"
+            ]
+        },
+        "120": {
+            "name": "Catatonic",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Removal:\\B[0] 30% chance to be end on damage or if \"Snap out of it!\" skill is used on them.",
+                "\\TRT"
+            ]
+        },
+        "121": {
+            "name": "Wide Awake",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Catatonic or Sleep",
+                "\\TRT"
+            ]
+        },
+        "122": {
+            "name": "Mosh Pit",
+            "text": [
+                "\\B[1]Action Surge:\\B[0] Gain one extra action per turn",
+                "\\B[1]Per Turn:\\B[0] Lose -{mhp * 0.08} HP and -{mstm * 0.08} STM",
+                "\\TRT"
+            ]
+        },
+        "123": {
+            "name": "Tough Love",
+            "text": [
+                "\\B[1]Per turn:\\B[0] Gain +{mhp * 0.1} HP",
+                "\\TRT"
+            ]
+        },
+        "124": {
+            "name": "Lock Out",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\TRT"
+            ]
+        },
+        "125": {
+            "name": "Engulfed",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Engulfed:\\B[0] -99% chance of being targeted",
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.15} HP",
+                "\\TRT"
+            ]
+        },
+        "127": {
+            "name": "Spinal Control",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\TRT"
+            ]
+        },
+        "128": {
+            "name": "Weakened",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.3} Attack & -{batk * 0.3} Ballistics",
+                "\\TRT"
+            ]
+        },
+        "129": {
+            "name": "Spineball",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -50% Damage taken.",
+                "\\B[1]Retaliator:\\B[0] +999% Counter attack",
+                "\\TRT"
+            ]
+        },
+        "131": {
+            "name": "Nitro Boost",
+            "text": [
+                "\\B[1]Resistant:\\B[0] Chances are halved to get Sleep",
+                "\\B[1]Nimble:\\B[0] +{agi * 0.3} Agility",
+                "\\B[1]Quick:\\B[0] +{eva * 0.3} Evasion",
+                "\\TRT"
+            ]
+        },
+        "132": {
+            "name": "Numb",
+            "text": [
+                "\\B[1]Immune:\\B[0] Cures and grants immunity to Poison, Blind, Panic, Rage, Confusion, Charm, Sleep, Bleed 1, Bleed 2, Bleed 3, Paralysis, Stun, Burn, Acid, Infected, Disease, Spinal Control, and Gamma Rays ",
+                "\\TRT"
+            ]
+        },
+        "133": {
+            "name": "Hurt Me Plenty",
+            "text": [
+                "\\B[1]Prey:\\B[0] Double chance of being targeted",
+                "\\B[1]Bulwark:\\B[0] -25% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "134": {
+            "name": "Killshot",
+            "text": [
+                "\\B[1]Deadeye:\\B[0] On the next turn, all ranged attacks are going to be a Critical Hit",
+                "\\TRT"
+            ]
+        },
+        "135": {
+            "name": "Blood Madness",
+            "text": [
+                "\\B[1]Haywire:\\B[0] Cannot be controlled, and attacks an enemy",
+                "\\B[1]Double strike:\\B[0] Attacks 2 times",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack",
+                "\\B[1]Frail:\\B[0] +50% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "136": {
+            "name": "Long Haul Flow",
+            "text": [
+                "\\B[1]Haywire:\\B[0] Cannot be controlled, and attacks an enemy",
+                "\\B[1]Per Turn:\\B[0] Recover {mstm * 0.1} STM",
+                "\\TRT"
+            ]
+        },
+        "137": {
+            "name": "Dungeon Dance",
+            "text": [
+                "\\B[1]Retaliator:\\B[0] Always counterattack for free after being hit",
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\TRT"
+            ]
+        },
+        "138": {
+            "name": "Garrison",
+            "text": [
+                "",
+                "\\B[1]Inaccurate:\\B[0] 0 Hit rate",
+                "\\B[1]Lethargic:\\B[0] 0 Evasion rate",
+                "\\B[1]Clumsy:\\B[0] -{agi*0.5} Agility",
+                "\\B[1]Powerful:\\B[0] +{batk*0.5} Ballistics",
+                "\\B[1]Bulwark:\\B[0] +{bdef*0.5} B.Defense",
+                "\\TRT"
+            ]
+        },
+        "139": {
+            "name": "Risk Taker",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk*0.5} Attack & +{batk*0.5} Ballistics",
+                "\\B[1]Frail:\\B[0] +50% Damage Taken",
+                "\\TRT"
+            ]
+        },
+        "142": {
+            "name": "Teething",
+            "text": [
+                "Offensive skills do significantly more damage.",
+                "\\B[1]Guarded:\\B[0] -50% damage taken",
+                "\\TRT"
+            ]
+        },
+        "143": {
+            "name": "Worm Smell",
+            "text": [
+                "\\B[1]Prey:\\B[0] 300% Chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "144": {
+            "name": "Worm Elixer",
+            "text": [
+                "\\B[1]Prey:\\B[0] 300% Chance of being targeted",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.4} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Worm Smell",
+                "\\TRT"
+            ]
+        },
+        "145": {
+            "name": "HiddenSpecial",
+            "text": [
+                "\\B[1]Nimble:\\B[0] +{eva * 0.5} Evasion rate"
+            ]
+        },
+        "146": {
+            "name": "Hidden",
+            "text": [
+                "\\B[1]Hidden:\\B[0] -50% Chance of being targeted",
+                "\\B[1]Nimble:\\B[0] +{eva * 0.5} Evasion"
+            ]
+        },
+        "147": {
+            "name": "Attracted Attention",
+            "text": [
+                "\\B[1]Prey:\\B[0] 150% Chance of being targeted",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Evasion rate",
+                "\\TRT"
+            ]
+        },
+        "148": {
+            "name": "Distraction",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Attracted Attention",
+                "\\TRT"
+            ]
+        },
+        "149": {
+            "name": "Whip Entangle",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.2} Attack",
+                "\\B[1]Weak:\\B[0] -{batk * 0.2} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit rate",
+                "\\TRT"
+            ]
+        },
+        "150": {
+            "name": "Fallow Will",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.1} Attack",
+                "\\B[1]Inaccurate:\\B[0] -{cri * 0.1} Critical hit rate"
+            ]
+        },
+        "151": {
+            "name": "Bushwhacker",
+            "text": [
+                "\\B[1]Prey:\\B[0] 200% Chance of being targeted",
+                "\\B[1]Retaliator:\\B[0] +25% Counter attack",
+                "\\TRT"
+            ]
+        },
+        "153": {
+            "name": "Lyme Disease",
+            "text": [
+                "\\B[1]Powerful:\\B[0] -{atk*0.2} Attack & -{batk*0.2} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi*0.2} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luck*0.2} Luck",
+                "\\TRT"
+            ]
+        },
+        "155": {
+            "name": "disease affinity",
+            "text": [
+                "x10 chance to be affected by disease affinity+"
+            ]
+        },
+        "156": {
+            "name": "disease affinity+",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by disease affinity"
+            ]
+        },
+        "158": {
+            "name": "Melted",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.5} Attack",
+                "\\B[1]Bulwark:\\B[0] -90% Physical & -50% Crushing, Slashing, Piercing, Bullet, or Armor Piercing Damage taken",
+                "\\B[1]Frail:\\B[0] +300% Cold damage taken",
+                "\\TRT"
+            ]
+        },
+        "159": {
+            "name": "Poison Strength",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack",
+                "\\TRT"
+            ]
+        },
+        "160": {
+            "name": "Coagulated Shell",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -50% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "161": {
+            "name": "Hollow",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -20% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Panic, Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "162": {
+            "name": "Boils",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -20% Damage taken",
+                "+30% chance to inflict Infection",
+                "\\TRT"
+            ]
+        },
+        "163": {
+            "name": "Cheered",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk*0.3} Attack",
+                "\\B[1]Clumsy:\\B[0] +{agi*0.3} Agility",
+                "\\B[1]Lucky:\\B[0] +{luck*0.3} Luck",
+                "\\B[1]Sharpshooter:\\B[0] +{cri * +0.15} Critical Hit Rate",
+                "\\TRT"
+            ]
+        },
+        "164": {
+            "name": "Tickle",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{mhp*0.3} MaxHP",
+                "\\B[1]Exhausted:\\B[0] -{mstm*0.3} MaxSTM",
+                "\\B[1]Weak:\\B[0] -{atk*0.2} Attack",
+                "\\TRT"
+            ]
+        },
+        "165": {
+            "name": "Taken",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action"
+            ]
+        },
+        "166": {
+            "name": "Beastmode",
+            "text": [
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Bulwark:\\B[0] -50% Damage taken",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack",
+                "\\B[1]Quick:\\B[0] +{agi * 0.2} Agility",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Panic, Rage, Confusion, Charm, Sleep, Stun, or Paralysis",
+                "\\TRT"
+            ]
+        },
+        "168": {
+            "name": "Combat Surge",
+            "text": [
+                "\\B[1]Immune:\\B[0] Immune to Panic, Rage, Confusion, Charm, Sleep, Stun, Paralysis, Spinal Control UL, Spinal Control UR, Spinal Control LL, & Spinal Control LR",
+                "\\B[1]Frail:\\B[0] +20% Damage taken",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack",
+                "\\B[1]Nimble:\\B[0] +{agi * 0.2} Agility",
+                "\\TRT"
+            ]
+        },
+        "169": {
+            "name": "Invulnerable",
+            "text": [
+                "\\B[1]Bulwark:\\B[0] -90% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "170": {
+            "name": "Swarm 1",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.3} HP",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.05} Hit rate",
+                "x5 chance to be affected by Swarm 2",
+                "x2 chance to be affected by Swarm 3",
+                "x0.5 chance to be affected by Swarm 1",
+                "\\TRT"
+            ]
+        },
+        "171": {
+            "name": "Swarm 2",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.6} HP",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.1} Hit rate",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Swarm 1",
+                "x10 chance to be affected by Swarm 3",
+                "x0.5 chance to be affected by Swarm 2",
+                "x2 chance to be affected by Swarm 3",
+                "\\TRT"
+            ]
+        },
+        "172": {
+            "name": "Swarm 3",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.9} HP",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit rate",
+                "x0.5 chance to be affected by Swarm 3",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Swarm 1 or Swarm 2",
+                "\\TRT"
+            ]
+        },
+        "174": {
+            "name": "Wither",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.5} Max HP",
+                "\\B[1]Weak:\\B[0] -{atk * 0.5} Attack & -{batk * 0.5} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.5} Luck",
+                "\\B[1]Per Turn:\\B[0] Lose {mstm * 0.1} STM",
+                "\\TRT"
+            ]
+        },
+        "176": {
+            "name": "Insane",
+            "text": [
+                "\\B[1]Confused:\\B[0] Attacks an enemy or party member randomly",
+                "\\TRT"
+            ]
+        },
+        "177": {
+            "name": "Unmade",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\TRT"
+            ]
+        },
+        "178": {
+            "name": "Assimilate",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\TRT"
+            ]
+        },
+        "180": {
+            "name": "StunImmune",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Stun",
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Paralysis & -60% chance to be affected by Film Bind",
+                "\\TRT"
+            ]
+        },
+        "181": {
+            "name": "ParalyzeImmune",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Paralysis",
+                "\\B[1]Resistant:\\B[0] -90% chance to be affected by Film Bind & -50% chance to be affected by Stun",
+                "\\TRT"
+            ]
+        },
+        "182": {
+            "name": "SleepImmune",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sleep or Drowsy",
+                "\\TRT"
+            ]
+        },
+        "183": {
+            "name": "PanicImmune",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Panic",
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "184": {
+            "name": "ConfusionImmune",
+            "text": [
+                "\\B[1]Resistant:\\B[0]-50% chance to be affected by Panic, Rage, or Charm",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Confusion",
+                "\\TRT"
+            ]
+        },
+        "185": {
+            "name": "CharmImmune",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Panic, Rage, or Confusion",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Charm",
+                "\\TRT"
+            ]
+        },
+        "186": {
+            "name": "RageImmune",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -50%chance to be affected by Panic, Confusion, or Charm",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Rage",
+                "\\TRT"
+            ]
+        },
+        "188": {
+            "name": "StunRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Stun",
+                "\\TRT"
+            ]
+        },
+        "189": {
+            "name": "ParalyzeRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Paralysis",
+                "\\TRT"
+            ]
+        },
+        "190": {
+            "name": "SleepRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -50% chance to be affected by Sleep or Drowsy",
+                "\\TRT"
+            ]
+        },
+        "191": {
+            "name": "PanicRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -25% chance to be affected by Panic, Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "192": {
+            "name": "ConfusionRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -25% chance to be affected by Panic, Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "193": {
+            "name": "CharmRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -25% chance to be affected by Panic, Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "194": {
+            "name": "RageRes",
+            "text": [
+                "\\B[1]Resistant:\\B[0] -25% chance to be affected by Panic, Rage, Confusion, or Charm",
+                "\\TRT"
+            ]
+        },
+        "196": {
+            "name": "Net",
+            "text": [
+                "\\B[1]Lethargic:\\B[0] -{eva * 1} Evasion rate & -{eva * 0.5} Critical hit evasion",
+                "\\B[1]Inaccurate:\\B[0] -{hit * 0.2} Hit rate",
+                "\\B[1]Frail:\\B[0] x1.5 Damage taken",
+                "\\B[1]Prey:\\B[0] +300% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "197": {
+            "name": "Not Fighting",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Powerful:\\B[0] +{batk * 10} Ballistics/magic evasion",
+                "\\B[1]Nimble:\\B[0] +{eva * 10} Evasion rate"
+            ]
+        },
+        "200": {
+            "name": "Growth",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP & +{mstm * 0.05} STM",
+                "\\TRT"
+            ]
+        },
+        "201": {
+            "name": "ExaltedHealTrick",
+            "text": [
+                "-100% Shadow Damage taken"
+            ]
+        },
+        "202": {
+            "name": "Heros Will",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack & +{batk * 0.5} Ballistics",
+                "\\TRT"
+            ]
+        },
+        "203": {
+            "name": "huskDefending",
+            "text": [
+                "\\B[1]Retaliator:\\B[0] +100% Counter attack",
+                "\\B[1]Stout:\\B[0] -75% Piercing Damage taken"
+            ]
+        },
+        "204": {
+            "name": "Demon Rage",
+            "text": [
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Bleed3, Wither, Mutate, Insane, Unmade, or Assimilate",
+                "\\TRT"
+            ]
+        },
+        "206": {
+            "name": "Prayer",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP",
+                "\\B[1]Stout:\\B[0] -50% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Wither"
+            ]
+        },
+        "207": {
+            "name": "Ritual",
+            "text": [
+                "\\B[1]Frail:\\B[0] +250% Ballistic damage taken",
+                "\\B[1]Per Turn:\\B[0] Lose {mstm * 0.05} STM",
+                "\\TRT"
+            ]
+        },
+        "208": {
+            "name": "DontAttackIt",
+            "text": [
+                "\\B[1]Hidden:\\B[0] -50% Target rate",
+                "\\TRT"
+            ]
+        },
+        "210": {
+            "name": "Anti-blind",
+            "text": [
+                "\\B[1]Anti-blind:\\B[0] Immune to Blind",
+                "\\TRT"
+            ]
+        },
+        "211": {
+            "name": "Calm",
+            "text": [
+                "\\B[1]Immune:\\B[0] Immune to Panic, Rage, Confusion, Charm, Fear, Panic, Rage, Confusion, Charm, or Fear",
+                "\\B[1]Vulnerable:\\B[0] Chances are doubled to get Drowsy or Sleep is doubled",
+                "\\B[1]Resistant:\\B[0] Chances are halved to get Spinal Control UL, Spinal Control UR, Spinal Control LL, or Spinal Control LR is halved",
+                "\\TRT"
+            ]
+        },
+        "213": {
+            "name": "Honeycomb",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.1} HP",
+                "\\B[1]Resistant:\\B[0] Half chance to be affected by Poison, Blind, Bleed1, Bleed2, Bleed3, Paralysis, Stun, Burn, Acid, Pain, Frozen, Gamma Rays, Disease 3, Disease 2, Disease 1, or Infection",
+                "\\TRT"
+            ]
+        },
+        "215": {
+            "name": "Song of Speed",
+            "text": [
+                "\\B[1]Quick:\\B[0] +{agi * 0.2} Agility",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sleep or Drowsy",
+                "\\TRT"
+            ]
+        },
+        "216": {
+            "name": "Song of Defense",
+            "text": [
+                "\\B[1]Shielded:\\B[0] +{def * 0.2} Defense & +{bdef * 0.2} Ballistic Defense",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Confusion",
+                "\\TRT"
+            ]
+        },
+        "217": {
+            "name": "Song of Strength",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Panic",
+                "\\TRT"
+            ]
+        },
+        "218": {
+            "name": "Song of Willpower",
+            "text": [
+                "\\B[1]Resistant:\\B[0] Half chance to be affected by Panic, Rage, Confusion, Charm, Sleep, Bleed1, Bleed2, Bleed3, Paralysis, Stun, Burn, Acid, Pain, Drowsy, Fear, Frozen, Spinal Control UL, Spinal Control UR, Spinal Control LL, or Spinal Control LR",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Stun",
+                "\\TRT"
+            ]
+        },
+        "219": {
+            "name": "Double Time",
+            "text": [
+                "\\B[1]Double Strike:\\B[0] Melee attacks hit 1 extra time.",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Frozen",
+                "\\TRT"
+            ]
+        },
+        "221": {
+            "name": "Juicebox Mixtape",
+            "text": [
+                "\\B[1]Shielded:\\B[0] +{def * 0.15} Defense & +{bdef * 0.15} Ballistic Defense",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.15} Attack",
+                "\\B[1]Quick:\\B[0] +{agi * 0.15} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 0.15} Luck",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP",
+                "\\TRT"
+            ]
+        },
+        "223": {
+            "name": "Fidget Overdrive",
+            "text": [
+                "User can make up to 3 extra actions on their next turn.",
+                "\\TRT"
+            ]
+        },
+        "225": {
+            "name": "Eyes Shut",
+            "text": [
+                "\\B[1]Stout:\\B[0] -50% Damage taken",
+                "\\B[1]Retaliator:\\B[0] +50% Counter attack"
+            ]
+        },
+        "226": {
+            "name": "Insulted",
+            "text": [
+                "\\B[1]Frail:\\B[0] +20% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "227": {
+            "name": "RoachSchism",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.5} Attack & -{batk * 0.5} Ballistics",
+                "\\B[1]Exposed:\\B[0] -{def * 0.5} Defense & -{def * 0.5} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.5} Luck",
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.4} Max HP",
+                "\\B[1]Exhausted:\\B[0] -{mstm * 0.4} Max STM"
+            ]
+        },
+        "229": {
+            "name": "Consumed",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Powerful:\\B[0] +{batk * 10} Ballistics/magic evasion",
+                "\\B[1]Nimble:\\B[0] +{eva * 10} Evasion rate"
+            ]
+        },
+        "230": {
+            "name": "PhilPower1",
+            "text": [
+                "\\B[1]Vigor:\\B[0] +{maxhp * 0.5} Max HP",
+                "\\B[1]Fresh:\\B[0] +{mstm * 0.5} Max STM",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack & +{batk * 0.5} Ballistics",
+                "\\B[1]Shielded:\\B[0] +{def * 0.5} Defense & +{def * 0.5} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 0.5} Luck",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.03} HP & +{mstm * 0.03} STM"
+            ]
+        },
+        "231": {
+            "name": "PhilPower2",
+            "text": [
+                "\\B[1]Vigor:\\B[0] +{maxhp * 0.8} Max HP",
+                "\\B[1]Fresh:\\B[0] +{mstm * 0.8} Max STM",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.8} Attack & +{batk * 0.8} Ballistics",
+                "\\B[1]Shielded:\\B[0] +{def * 0.8} Defense & +{def * 0.8} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.4} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 0.8} Luck",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP & +{mstm * 0.05} STM"
+            ]
+        },
+        "232": {
+            "name": "PhilPower3",
+            "text": [
+                "\\B[1]Vigor:\\B[0] +{maxhp * 1} Max HP",
+                "\\B[1]Fresh:\\B[0] +{mstm * 1} Max STM",
+                "\\B[1]Powerful:\\B[0] +{atk * 1} Attack & +{batk * 1} Ballistics",
+                "\\B[1]Shielded:\\B[0] +{def * 1} Defense & +{def * 1} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.6} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 1} Luck",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.06} HP & +{mstm * 0.06} STM"
+            ]
+        },
+        "234": {
+            "name": "Royal Decree",
+            "text": [
+                "\\B[1]Double strike:\\B[0] Melee attacks hit 2 times",
+                "\\B[1]Powerful:\\B[0] +{atk*0.5} Attack",
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\TRT"
+            ]
+        },
+        "235": {
+            "name": "Governor",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk*0.3} Attack & +{batk*0.3} Ballistics",
+                "\\B[1]Bulwark:\\B[0] +{def*0.3} Defense & +{bdef*0.3} B.Defense",
+                "\\B[1]Nimble:\\B[0] +{agi*0.3} Agility",
+                "\\B[1]Lucky:\\B[0] +{luck*0.3} Luck",
+                "\\TRT"
+            ]
+        },
+        "238": {
+            "name": "Heart",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.02} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Frozen",
+                "\\B[1]Bulwark:\\B[0] -50% Cold damage taken"
+            ]
+        },
+        "239": {
+            "name": "Lungs",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Stun or Paralysis",
+                "\\B[1]Bulwark:\\B[0] -50% Crushing damage taken"
+            ]
+        },
+        "240": {
+            "name": "Intestines",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Blind or Disease 1"
+            ]
+        },
+        "241": {
+            "name": "Brain",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Panic, Rage, Confusion, or Charm",
+                "\\B[1]Bulwark:\\B[0] -50% Shock damage taken"
+            ]
+        },
+        "242": {
+            "name": "Liver",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Poison",
+                "\\B[1]Bulwark:\\B[0] -50% Slashing damage taken"
+            ]
+        },
+        "243": {
+            "name": "Pancreas",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sleep",
+                "\\B[1]Bulwark:\\B[0] -50% Blast damage taken"
+            ]
+        },
+        "244": {
+            "name": "Stomach",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Acid",
+                "\\B[1]Bulwark:\\B[0] -50% Acid damage taken"
+            ]
+        },
+        "245": {
+            "name": "Kidneys",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Burn",
+                "\\B[1]Bulwark:\\B[0] -50% Fire damage taken"
+            ]
+        },
+        "246": {
+            "name": "Uterus",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.01} HP",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Bleed1, Bleed2, or Bleed3",
+                "\\B[1]Bulwark:\\B[0] -50% Piercing or Bullet damage taken"
+            ]
+        },
+        "248": {
+            "name": "Digested",
+            "text": [
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.5} Max HP",
+                "\\TRT"
+            ]
+        },
+        "249": {
+            "name": "Devoured",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action"
+            ]
+        },
+        "251": {
+            "name": "Digesting",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP",
+                "\\B[1]Vigor:\\B[0] +{maxhp * 0.25} Max HP",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack & +{batk * 0.25} Ballistics",
+                "\\B[1]Quick:\\B[0] +{agi * 0.25} Agility"
+            ]
+        },
+        "252": {
+            "name": "Frog Curse",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.15} HP",
+                "\\TRT"
+            ]
+        },
+        "253": {
+            "name": "Broken Bones",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.25} Attack",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.25} Agility",
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.5} Max HP",
+                "\\TRT"
+            ]
+        },
+        "254": {
+            "name": "Seizures",
+            "text": [
+                "\\B[1]Confused:\\B[0] Attacks an enemy or party member randomly",
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.1} HP",
+                "\\TRT"
+            ]
+        },
+        "255": {
+            "name": "Film Bind",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Lethargic:\\B[0] -{eva * 1} Evasion rate",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.2} Critical hit evasion",
+                "\\B[1]Vulnerable:\\B[0] Double chance to be affected by Burn",
+                "\\B[1]Frail:\\B[0] 200% Fire damage taken",
+                "\\TRT"
+            ]
+        },
+        "256": {
+            "name": "Guilt",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.2} Attack & -{batk * 0.2} Ballistics",
+                "\\B[1]Exposed:\\B[0] -{def * 0.2} Defense & -{def * 0.2} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.2} Luck"
+            ]
+        },
+        "257": {
+            "name": "Soulsteal",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.1} HP",
+                "\\B[1]Weak:\\B[0] -{atk * 0.2} Attack & -{batk * 0.2} Ballistics",
+                "\\B[1]Exposed:\\B[0] -{def * 0.2} Defense & -{def * 0.2} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.2} Luck"
+            ]
+        },
+        "258": {
+            "name": "Indigo Mask",
+            "text": [
+                "\\B[1]Death Defy:\\B[0] If the user gets to 0 HP, the mask 'cracks' and heals the user 100% of HP. Afterward, the state 'Cracked Mask' is applied."
+            ]
+        },
+        "259": {
+            "name": "Wuss Out",
+            "text": [
+                "\\B[1]Hidden:\\B[0] -70% Chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "260": {
+            "name": "Fire Safety Happy",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Burn or Acid",
+                "\\B[1]Bulwark:\\B[0] 50% Fire or Acid Damage taken",
+                "\\TRT"
+            ]
+        },
+        "261": {
+            "name": "Fire Safety",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Burn or Acid",
+                "\\B[1]Bulwark:\\B[0] 50% Fire or Acid Damage taken",
+                "\\TRT"
+            ]
+        },
+        "262": {
+            "name": "Strategy",
+            "text": [
+                "\\B[1]Marksman:\\B[0] +{hit * 0.1} Hit rate",
+                "\\B[1]Sharpshooter:\\B[0] +{cri * 0.15} Critical hit rate",
+                "\\B[1]Resistant:\\B[0] Half chance to be affected by Panic or Confusion",
+                "\\TRT"
+            ]
+        },
+        "263": {
+            "name": "Cracked Mask",
+            "text": [
+                "\\B[1]Frail:\\B[0] +50% Physical Damage taken & +50% Ballistic Damage taken",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics",
+                "\\B[1]Removal:\\B[0] Lasts until end of battle"
+            ]
+        },
+        "264": {
+            "name": "Prime Cracked Mask",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Unconscious"
+            ]
+        },
+        "265": {
+            "name": "8-Ball Power",
+            "text": [
+                "\\B[1]Incredible:\\B[0]",
+                "+{mhp * 0.5} MaxHP",
+                "+{mstm * 0.5} MaxSTM",
+                "+{atk * 0.5} Attack",
+                "+{def * 0.5} Defense",
+                "+{batk * 0.5} Ballistics",
+                "+{bdef * 0.5} B.Defense",
+                "+{agi * 0.5} Agility",
+                "+{luck * 0.5} Luck",
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP & {mstm * 0.05} STM",
+                "\\TRT"
+            ]
+        },
+        "266": {
+            "name": "Grinning Beast X",
+            "text": [
+                "\\B[1]Stout:\\B[0] -70% Damage taken",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Per Turn:\\B[0] Lose {mstm * 0.05} STM",
+                "\\B[1]Vulnerable:\\B[0] Double chance to be affected by Confusion",
+                "\\B[1]Resistant:\\B[0] Half chance to be affected by Stun",
+                "\\TRT"
+            ]
+        },
+        "267": {
+            "name": "Bloodlust X",
+            "text": [
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\TRT"
+            ]
+        },
+        "268": {
+            "name": "Immortal",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.15} HP & {mstm * 0.15} STM",
+                "\\B[1]Bulwark:\\B[0] -95% Physical Damage taken & -95% Ballistic Damage taken",
+                "\\B[1]Overloaded:\\B[0] 1% chance to become Unconscious",
+                "\\B[1]Shadow and Flesh Begone!:\\B[0] -90% Shadow or Flesh Damage taken",
+                "\\TRT"
+            ]
+        },
+        "269": {
+            "name": "Spent Mask",
+            "text": [
+                "\\B[1]Frail:\\B[0] x1.5 Damage taken",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.2} Attack & +{batk * 0.2} Ballistics"
+            ]
+        },
+        "270": {
+            "name": "Petrifying",
+            "text": [
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.1} Evasion rate",
+                "\\B[1]Stout:\\B[0] -25% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Petrifying",
+                "x10 chance to be affected by Petrifying2",
+                "x6 chance to be affected by Petrifying2"
+            ]
+        },
+        "271": {
+            "name": "Petrifying2",
+            "text": [
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.25} Agility",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.25} Evasion rate",
+                "\\B[1]Stout:\\B[0] -50% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Petrifying2 or Petrifying",
+                "x10 chance to be affected by Petrifying3",
+                "x6 chance to be affected by Petrifying3"
+            ]
+        },
+        "272": {
+            "name": "Petrifying3",
+            "text": [
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Lethargic:\\B[0] -{eva * 0.5} Evasion rate",
+                "\\B[1]Stout:\\B[0] -80% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Petrifying3, Petrifying2, or Petrifying",
+                "x10 chance to be affected by Petrified",
+                "x6 chance to be affected by Petrified"
+            ]
+        },
+        "273": {
+            "name": "Petrified",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\B[1]Lethargic:\\B[0] -{eva * 9.99} Evasion rate",
+                "\\B[1]Stout:\\B[0] -90% Damage taken",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Petrifying3, Petrifying2, Petrified, or Petrifying"
+            ]
+        },
+        "274": {
+            "name": "spine controlling",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action"
+            ]
+        },
+        "275": {
+            "name": "Spinal Control UL",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Hidden:\\B[0] 1% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "276": {
+            "name": "Spinal Control UR",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Hidden:\\B[0] 1% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "277": {
+            "name": "Spinal Control LL",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Hidden:\\B[0] 1% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "278": {
+            "name": "Spinal Control LR",
+            "text": [
+                "\\B[1]Charmed:\\B[0] Can only attack party members",
+                "\\B[1]Hidden:\\B[0] 1% chance of being targeted",
+                "\\TRT"
+            ]
+        },
+        "280": {
+            "name": "Tadasana",
+            "text": [
+                "\\B[1]Retaliator:\\B[0] +80% Counter attack",
+                "\\B[1]Stout:\\B[0] -30% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "281": {
+            "name": "Virabhadrasana",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.3} Attack",
+                "\\TRT"
+            ]
+        },
+        "282": {
+            "name": "Vrksasana",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.15} HP",
+                "\\B[1]Weak:\\B[0] -{atk * 0.5} Attack",
+                "\\B[1]Weak:\\B[0] -{batk * 0.5} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.5} Luck",
+                "\\TRT"
+            ]
+        },
+        "283": {
+            "name": "Urdhva Hastasana",
+            "text": [
+                "\\B[1]Frail:\\B[0] +50% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "284": {
+            "name": "Astavakrasana",
+            "text": [
+                "\\B[1]Marksman:\\B[0] +{hit * 0.5} Hit rate",
+                "\\B[1]Sharpshooter:\\B[0] +{cri * 0.5} Critical hit rate",
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.15} HP",
+                "\\TRT"
+            ]
+        },
+        "289": {
+            "name": "Time Stop Immune",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Time Stop"
+            ]
+        },
+        "290": {
+            "name": "Time Stop",
+            "text": [
+                "\\B[1]Stunned:\\B[0] Cannot take any action",
+                "\\TRT"
+            ]
+        },
+        "291": {
+            "name": "JBStamRegen",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mstm * 0.1} STM",
+                "\\TRT"
+            ]
+        },
+        "292": {
+            "name": "JBProtSlime",
+            "text": [
+                "\\B[1]Stout:\\B[0] -50% Damage taken",
+                "\\TRT"
+            ]
+        },
+        "293": {
+            "name": "JBDebuff",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.2} Attack & -{batk * 0.2} Ballistics",
+                "\\B[1]Exposed:\\B[0] -{def * 0.2} Defense & -{def * 0.2} Bullet Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.2} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.2} Luck",
+                "\\TRT"
+            ]
+        },
+        "294": {
+            "name": "glitch poison",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.25} Attack & +{batk * 0.25} Ballistics",
+                "\\B[1]Shielded:\\B[0] +{def * 0.25} Defense & +{def * 0.25} Bullet Defense",
+                "\\B[1]Quick:\\B[0] +{agi * 0.5} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 2} Luck",
+                "\\B[1]Fresh:\\B[0] +{mstm * 0.5} Max STM",
+                "\\B[1]Attacks:\\B[0] +10% chance to inflict glitch poison.",
+                "\\B[1]Immune:\\B[0] User cannot be affected by glitch bleed, glitch panic, glitch rage, or glitch dead",
+                "\\B[1]Per Turn:\\B[0] Lose {mstm * 0.04} STM"
+            ]
+        },
+        "295": {
+            "name": "glitch bleed",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.4} Attack",
+                "\\B[1]Powerful:\\B[0] +{batk * 1} Ballistics",
+                "\\B[1]Shielded:\\B[0] +{def * 0.5} Defense",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.44} Agility",
+                "\\B[1]Lucky:\\B[0] +{luk * 0.2} Luck",
+                "\\B[1]Vigor:\\B[0] +{maxhp * 0.5} Max HP",
+                "\\B[1]Attacks:\\B[0] +10% chance to inflict glitch bleed.",
+                "\\B[1]Immune:\\B[0] User cannot be affected by glitch bleed, glitch panic, glitch rage, or glitch dead",
+                "\\B[1]Per Turn:\\B[0] Lose {mhp * 0.04} HP"
+            ]
+        },
+        "296": {
+            "name": "glitch panic",
+            "text": [
+                "Doubles skill STM costs.",
+                "\\B[1]Shielded:\\B[0]+{def * 0.5} Defense & +{def * 0.5} Bullet Defense",
+                "\\B[1]Per Turn:\\B[0] Recover {mstm * 0.05} STM",
+                "\\B[1]Attacks:\\B[0] +10% chance to inflict glitch panic.",
+                "\\B[1]Immune:\\B[0] User cannot be affected by glitch bleed, glitch panic, glitch rage, or glitch dead"
+            ]
+        },
+        "297": {
+            "name": "glitch rage",
+            "text": [
+                "Affected unit's melee attacks hit 2 extra times.",
+                "\\B[1]Rage:\\B[0]: Can only attack an enemy",
+                "\\B[1]Powerful:\\B[0] +{atk * 0.5} Attack",
+                "\\B[1]Exposed:\\B[0] -{def * 0.5} Defense",
+                "\\B[1]Weak:\\B[0] -{batk * 0.5} Ballistics",
+                "\\B[1]Clumsy:\\B[0] -{agi * 0.5} Agility",
+                "\\B[1]Unlucky:\\B[0] -{luk * 0.5} Luck",
+                "\\B[1]Frail:\\B[0] +50%  taken",
+                "\\B[1]Attacks:\\B[0] +10% chance to inflict glitch rage.",
+                "\\B[1]Immune:\\B[0] User cannot be affected by glitch bleed, glitch panic, glitch rage, or glitch dead"
+            ]
+        },
+        "298": {
+            "name": "glitch dead",
+            "text": [
+                "\\B[1]Dumb:\\B[0] Affected unit's will not recieve XP from battles.",
+                "\\B[1]Glitch Death:\\B[0] If all other party members are unconscious and/or glitch dead, the party will game over.",
+                "\\B[1]Feeble:\\B[0] -{maxhp * 0.5} Max HP",
+                "\\B[1]Nimble:\\B[0] +{eva * 0.5} Evasion rate",
+                "\\B[1]Stout:\\B[0] -75% Damage taken",
+                "\\B[1]Hidden:\\B[0] -90% Chance of being targeted",
+                "\\B[1]Glitch Death:\\B[0] 1% chance to be affected by Unconscious",
+                "\\B[1]Immune:\\B[0] User cannot be affected by glitch poison, glitch bleed, glitch panic, or glitch rage"
+            ]
+        },
+        "300": {
+            "name": "JBNurse",
+            "text": [
+                "\\B[1]Per Turn:\\B[0] Recover {mhp * 0.05} HP",
+                "\\TRT"
+            ]
+        },
+        "303": {
+            "name": "Weaken",
+            "text": [
+                "\\B[1]Weak:\\B[0] -{atk * 0.25} Attack",
+                "\\TRT"
+            ]
+        },
+        "305": {
+            "name": "Scriv1",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{batk * 0.5} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by prevQuickScriv, Scriv3, Scriv4, or Scriv5",
+                "x10 chance to be affected by Scriv2"
+            ]
+        },
+        "306": {
+            "name": "Scriv2",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{batk * 1} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Scriv1, Scriv2, Scriv4, or Scriv5",
+                "x10 chance to be affected by Scriv3"
+            ]
+        },
+        "307": {
+            "name": "Scriv3",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{batk * 1.5} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Scriv1, Scriv2, Scriv3, or Scriv5",
+                "x10 chance to be affected by Scriv4"
+            ]
+        },
+        "308": {
+            "name": "Scriv4",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{batk * 2} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Scriv1, Scriv2, Scriv3, Scriv4, or Scriv3",
+                "x10 chance to be affected by Scriv5"
+            ]
+        },
+        "309": {
+            "name": "Scriv5",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{batk * 2.5} Ballistics",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Scriv1, Scriv2, Scriv3, Scriv4, or Scriv5"
+            ]
+        },
+        "311": {
+            "name": "Sharpen1",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.3} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by prevQuickSharpen, Sharpen1, Sharpen3, Sharpen4, or Sharpen5",
+                "x10 chance to be affected by Sharpen2"
+            ]
+        },
+        "312": {
+            "name": "Sharpen2",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.6} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sharpen1, Sharpen2, Sharpen4, or Sharpen5",
+                "x10 chance to be affected by Sharpen3"
+            ]
+        },
+        "313": {
+            "name": "Sharpen3",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 0.9} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sharpen1, Sharpen2, Sharpen3, or Sharpen5",
+                "x10 chance to be affected by Sharpen4"
+            ]
+        },
+        "314": {
+            "name": "Sharpen4",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 1.2} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sharpen1, Sharpen2, Sharpen3, or Sharpen4",
+                "x10 chance to be affected by Sharpen5"
+            ]
+        },
+        "315": {
+            "name": "Sharpen5",
+            "text": [
+                "\\B[1]Powerful:\\B[0] +{atk * 1.5} Attack",
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sharpen1, Sharpen2, Sharpen3, Sharpen4, or Sharpen5"
+            ]
+        },
+        "316": {
+            "name": "prevQuickSharpen",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Sharpen2, Sharpen3, Sharpen4, or Sharpen5"
+            ]
+        },
+        "317": {
+            "name": "prevQuickScriv",
+            "text": [
+                "\\B[1]Immune:\\B[0] User cannot be affected by Scriv2, Scriv3, Scriv4, or Scriv5"
+            ]
+        }
+    }
+}
