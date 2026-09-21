@@ -53,4 +53,9 @@ LookOutsideMusicMod/audio/bgm/*.ogg
 LookOutsideMusicMod/audio/bgm/*.ogg_
 !LookOutsideMusicMod/audio/bgm/*_VaporWave.ogg
 !LookOutsideMusicMod/audio/bgm/*_HorrorOST.ogg
+!LookOutsideMusicMod/audio/bgs
+LookOutsideMusicMod/audio/bgs/*.ogg
+LookOutsideMusicMod/audio/bgs/*.ogg_
+!LookOutsideMusicMod/audio/bgs/*_VaporWave.ogg
+!LookOutsideMusicMod/audio/bgs/*_HorrorOST.ogg
 
