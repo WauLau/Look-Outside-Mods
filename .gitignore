@@ -47,6 +47,7 @@ LookOutsideMusicMod/*
 
 # Project Files
 !LookOutsideMusicMod/data
+LookOutsideMusicMod/data/MapInfos.json
 !LookOutsideMusicMod/audio
 !LookOutsideMusicMod/audio/bgm
 LookOutsideMusicMod/audio/bgm/*.ogg
