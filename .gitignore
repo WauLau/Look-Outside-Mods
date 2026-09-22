@@ -22,7 +22,6 @@ LookOutsidePluginMods/js/*
 LookOutsidePluginMods/js/plugins/*
 !LookOutsidePluginMods/js/plugins
 !LookOutsidePluginMods/js/plugins/WauLau*
-!LookOutsidePluginMods/js/plugins/MOD_*
 LookOutsidePluginMods/data/*
 !LookOutsidePluginMods/data
 !LookOutsidePluginMods/data/WauLau*
@@ -46,6 +45,12 @@ LookOutsideMusicMod/swiftshader
 LookOutsideMusicMod/*
 
 # Project Files
+LookOutsideMusicMod/js/*
+!LookOutsideMusicMod/js
+!LookOutsideMusicMod/js/plugins.js
+LookOutsideMusicMod/js/plugins/*
+!LookOutsideMusicMod/js/plugins
+!LookOutsideMusicMod/js/plugins/WauLau*
 !LookOutsideMusicMod/data
 LookOutsideMusicMod/data/MapInfos.json
 !LookOutsideMusicMod/audio
