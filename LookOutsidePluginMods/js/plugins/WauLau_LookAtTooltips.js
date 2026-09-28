@@ -55,15 +55,16 @@
  * already have one written don't need to be duplicated into this file.
  *
  * 4.) Gamepad/controller support:
- * The Gamepad Toggle Button below turns on tooltip browsing without a mouse.
- * What it shows depends on what's focused when you press it:
- *   - If an item/equip/shop list currently has the cursor, the tooltip
- *     follows whichever row that list's own cursor is on - just move the
- *     cursor as normal, no extra buttons needed for this case.
+ * The dash button (gamepad X / keyboard Shift) shows and hides tooltips in
+ * battle and menu screens, where dashing isn't possible. What it shows
+ * depends on what's focused when you press it:
+ *   - If an item/equip/shop list currently has the cursor, it shows the
+ *     tooltip for that row only. Moving to another row closes it, and it
+ *     stays closed until the button is pressed again.
  *   - Otherwise, it cycles through every state/buff-bearing battler on
  *     screen (same as hovering their icons with a mouse), stepped with the
  *     Prev/Next buttons below.
- * Pressing the toggle button again turns it off. It also turns itself off
+ * Pressing the button again turns it off. It also turns itself off
  * automatically the moment whatever it was showing stops being on screen -
  * e.g. opening the skill/item list in battle, or moving to a different
  * screen that closes the window a tooltip was anchored to - so it can't get
@@ -243,14 +244,6 @@
  * @type number
  * @min -10
  * @default 0
- *
- * @param gamepadToggleButton
- * @text Gamepad Toggle Button Index
- * @desc Standard Gamepad API button index that toggles controller tooltip browsing on/off. Default 8 = Back/Select (unused by the engine).
- * @type number
- * @min 0
- * @max 17
- * @default 8
  *
  * @param gamepadPrevButton
  * @text Gamepad Previous Button Index
@@ -467,11 +460,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     const boldOutlineColor = Number(params.boldOutlineColor || 12)
     let M_hexColorMap = new Map() //Map containing index colors as hex colors as <Index : Hex>
 
-    // Registers new gamepad symbols on buttons 6/7/8 (triggers + back/select),
-    // which the engine's own Input.gamepadMapper leaves unused. Configurable
-    // via plugin parameters only, not through an in-game rebind menu.
-    Input.gamepadMapper[Number(params.gamepadToggleButton || 8)] =
-        "ToggleTooltip"
+    // Registers new gamepad symbols on buttons 6/7 (triggers), which the
+    // engine's own Input.gamepadMapper leaves unused. Configurable via plugin
+    // parameters only, not through an in-game rebind menu. The show/hide
+    // button reuses the existing "shift" symbol instead (see TOGGLE BUTTON).
     Input.gamepadMapper[Number(params.gamepadPrevButton || 6)] = "TooltipPrev"
     Input.gamepadMapper[Number(params.gamepadNextButton || 7)] = "TooltipNext"
 
@@ -627,24 +619,31 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     // that supports tooltips is (re)created.
     //
     // mode: 'battler' cycles state/buff icons by hand with Prev/Next;
-    // 'item' mirrors whichever row an item/equip/shop list's own cursor is on.
+    // 'item' shows the one row an item/equip/shop list's cursor was on
+    // when the button was pressed.
     const gamepadTooltip = {
         active: false,
         mode: null,
         battlers: [],
         index: 0,
         itemWindow: null,
+        /** List row the item tooltip was opened for; leaving it closes the tooltip. */
+        row: -1,
         // Kept separate from the mouse-hover system's this._tooltipHoveredItem
         // (see updateGamepadItemTooltip/updateItemTooltipHover below) so mouse
         // and gamepad tracking can't overwrite each other's selection.
         lastItem: null,
+        /** Set on gamepad dismiss: mouse hover stays off until the mouse moves. */
+        waitForMouseMove: false,
     }
 
     function resetGamepadTooltip() {
         gamepadTooltip.active = false
         gamepadTooltip.mode = null
         gamepadTooltip.itemWindow = null
+        gamepadTooltip.row = -1
         gamepadTooltip.lastItem = null
+        gamepadTooltip.waitForMouseMove = false
     }
 
     //============================================================================//
@@ -862,25 +861,67 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         scene._stateTooltip = new Window_StateTooltip()
         scene.addChild(scene._stateTooltip)
         resetGamepadTooltip()
+        // Party portraits load up front, so a battler tooltip's header
+        // portrait is usually ready the first time it's drawn.
+        for (const actor of $gameParty.members()) {
+            if (actor.faceName()) ImageManager.loadFace(actor.faceName())
+        }
     }
 
     /**
-     * Shows a battler's state/buff tooltip.
+     * Shows a battler's state/buff tooltip. If a tooltip for something else
+     * is still up, that one fully closes first and this battler opens after
+     * (see {@link updateTooltipSwap}).
      * @param {Scene_Base} scene
      * @param {Game_Battler} battler
+     * @returns {boolean} true if shown now, false if queued behind a close
      */
     function showTooltip(scene, battler) {
-        scene._stateTooltip.setup(battler)
+        const tooltip = scene._stateTooltip
+        // SWAP -----
+        // openness > 0, not isOpen(): a tooltip that's still opening has to
+        // close too. The same battler while closing just reopens in place.
+        const showingOther =
+            scene._tooltipItemMode || tooltip._battler !== battler
+        if (tooltip.openness > 0 && showingOther) {
+            hideTooltip(scene)
+            scene._tooltipSwapBattler = battler
+            // Hands the tooltip over from the item system now, so its own
+            // "nothing hovered" check can't hide it and cancel this swap.
+            scene._tooltipItemMode = false
+            scene._tooltipHoveredItem = null
+            return false
+        }
+
+        // allMembers(), not members(): in battle members() is only the
+        // battle members, and a reserve actor is still a party member.
+        if ($gameParty.allMembers().includes(battler)) {
+            // For party members
+            tooltip.frontSpriteHue = -104
+            tooltip.backSpriteHue = -34
+            tooltip.backSpriteOpacity = 120
+        } else {
+            // For enemies/non party members
+            tooltip.frontSpriteHue = -0
+            tooltip.backSpriteHue = -105
+            tooltip.backSpriteOpacity = 185
+        }
+        tooltip.backOpacity = 255
+
+        scene._tooltipSwapBattler = null
+        tooltip.setup(battler)
         scene._stateTooltip.visible = true
         scene._stateTooltip.tooltipActive = true
         scene._tooltipItemMode = false
         scene._tooltipHoveredItem = null
+
         // Re-adding an already-added child moves it to the front of the
         // render order, so the tooltip draws above any window created after it.
         scene.addChild(scene._stateTooltip)
+        return true
     }
 
-    /** Scene_MenuBase.hideTooltip()
+    /** Scene_MenuBase.hideTooltip() - also cancels a queued battler swap.
      * @param {Scene_Base} scene
      * @function hideTooltip
      * @memberof Scene_MenuBase
@@ -888,6 +929,22 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     function hideTooltip(scene) {
         scene._stateTooltip.close()
         scene._stateTooltip.tooltipActive = false
+        scene._tooltipSwapBattler = null
+    }
+
+    /**
+     * Per-frame: opens a battler queued by {@link showTooltip} once the
+     * previous tooltip has fully closed, anchoring it for gamepad browsing
+     * (mouse tooltips follow the cursor on their own).
+     * @param {Scene_Base} scene
+     */
+    function updateTooltipSwap(scene) {
+        const battler = scene._tooltipSwapBattler
+        if (!battler || scene._stateTooltip.openness > 0) return
+        showTooltip(scene, battler)
+        if (gamepadTooltip.active && gamepadTooltip.mode === "battler") {
+            positionTooltipAt(scene, anchorPositionFor(scene, battler))
+        }
     }
 
     /**
@@ -896,9 +953,14 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      * @param {RPG.BaseItem} item
      */
     function showItemTooltip(scene, item) {
+        scene._tooltipSwapBattler = null
         scene._stateTooltip.setupItem(item, "Tooltip")
         scene._stateTooltip.visible = true
         scene._stateTooltip.tooltipActive = true
+        scene._stateTooltip.backOpacity = 255
+        scene._stateTooltip.frontSpriteHue = -10
+        scene._stateTooltip.backSpriteHue = 64
+        scene._stateTooltip.backSpriteOpacity = 195
         //scene._stateTooltip.openness = 0
         scene._tooltipItemMode = true
         scene.addChild(scene._stateTooltip)
@@ -907,6 +969,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     /** Turns gamepad tooltip browsing off and hides the tooltip. @param {Scene_Base} scene */
     function deactivateGamepadTooltip(scene) {
         resetGamepadTooltip()
+        gamepadTooltip.waitForMouseMove = true
         scene._tooltipItemMode = false
         scene._tooltipHoveredItem = null
         hideTooltip(scene)
@@ -981,14 +1044,17 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      */
     function selectGamepadTooltipBattler(scene) {
         const battler = gamepadTooltip.battlers[gamepadTooltip.index]
-        showTooltip(scene, battler)
-        positionTooltipAt(scene, anchorPositionFor(scene, battler))
+        // A queued swap is anchored by updateTooltipSwap once it opens;
+        // until then the closing tooltip stays at the previous battler.
+        if (showTooltip(scene, battler)) {
+            positionTooltipAt(scene, anchorPositionFor(scene, battler))
+        }
     }
 
     /**
-     * Prefers item mode when an item/equip/shop list has the cursor (that
-     * list already has its own cursor to track, so Prev/Next don't apply);
-     * otherwise falls back to cycling battler icons by hand.
+     * Prefers item mode when an item/equip/shop list has the cursor (the
+     * tooltip is for that row only, so Prev/Next don't apply); otherwise
+     * falls back to cycling battler icons by hand.
      * @param {Scene_Base} scene
      */
     function activateGamepadTooltip(scene) {
@@ -997,6 +1063,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             gamepadTooltip.active = true
             gamepadTooltip.mode = "item"
             gamepadTooltip.itemWindow = itemWindow
+            gamepadTooltip.row = itemWindow.index()
+            gamepadTooltip.lastItem = null
             updateGamepadItemTooltip(scene)
             return
         }
@@ -1011,8 +1079,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     /**
-     * Mirrors whichever row gamepadTooltip.itemWindow's own cursor is on.
-     * Bails out once that window stops being the active, on-screen list.
+     * Shows the tooltip for the row gamepadTooltip.row, and dismisses it
+     * once the cursor leaves that row, the row's item changes, or the
+     * window stops being the active, on-screen list.
      * @param {Scene_Base} scene
      */
     function updateGamepadItemTooltip(scene) {
@@ -1024,16 +1093,33 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
         const index = win.index()
         const item = index >= 0 ? win.itemAt(index) : null
-        if (item) {
-            if (item !== gamepadTooltip.lastItem) {
-                gamepadTooltip.lastItem = item
-                showItemTooltip(scene, item)
-            }
-            positionTooltipAt(scene, anchorPositionForItemRow(win, index))
-        } else if (gamepadTooltip.lastItem) {
-            gamepadTooltip.lastItem = null
-            hideTooltip(scene)
+
+        // LEFT ROW -----
+        // The tooltip belongs to the row it was opened on. Moving off it
+        // (or the row's item changing, e.g. after equipping) dismisses it,
+        // and it stays closed until the button is pressed again.
+        if (
+            index !== gamepadTooltip.row ||
+            !item ||
+            (gamepadTooltip.lastItem && item !== gamepadTooltip.lastItem)
+        ) {
+            deactivateGamepadTooltip(scene)
+            return
         }
+
+        // OPEN -----
+        // A tooltip still up from before (mid-close, or a mouse one) fully
+        // closes first. openness > 0, not isOpen(): one that's still
+        // opening has to close too.
+        if (!gamepadTooltip.lastItem) {
+            if (scene._stateTooltip.openness > 0) {
+                if (scene._stateTooltip.tooltipActive) hideTooltip(scene)
+                return
+            }
+            gamepadTooltip.lastItem = item
+            showItemTooltip(scene, item)
+        }
+        positionTooltipAt(scene, anchorPositionForItemRow(win, index))
     }
 
     /**
@@ -1043,7 +1129,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      * @param {Scene_Base} scene
      */
     function updateGamepadTooltip(scene) {
-        if (Input.isTriggered("ToggleTooltip")) {
+        // TOGGLE BUTTON -----
+        // "shift" is the dash symbol (gamepad X / keyboard Shift). Dashing
+        // only happens on the map, and this only runs in battle/menu scenes,
+        // so the button is free here. Using the symbol (not a raw button
+        // index) keeps it following any rebind of dash.
+        if (Input.isTriggered("menu")) {
             if (gamepadTooltip.active) {
                 deactivateGamepadTooltip(scene)
             } else {
@@ -1116,7 +1207,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
         }
 
-        if (gamepadTooltip.active) {
+        // A resting mouse over a list row would otherwise reopen its own
+        // tooltip right after a gamepad dismiss, so after gamepad use the
+        // mouse has to actually move onto an item to take over again.
+        if (gamepadTooltip.active || gamepadTooltip.waitForMouseMove) {
             if (!mouseActive || !hoveredItem) return
             resetGamepadTooltip()
         }
@@ -1233,6 +1327,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
+    //---------------------------SHOP STATUS PAGING---------------------------//
+    // SHIFT CONFLICT -----
+    // Window_ShopStatus pages through party members on "shift", the same
+    // symbol as the tooltip button. The status window updates (inside the
+    // scene's window layer) before updateGamepadTooltip runs, so checking
+    // only for an already-open tooltip would still page on the opening
+    // press. Instead, shift is blocked whenever the tooltip code will
+    // claim it: a tooltip is up, or an item list is ready to open one.
+    // Clicking the status window still pages.
+
+    const _Window_ShopStatus_isPageChangeRequested =
+        Window_ShopStatus.prototype.isPageChangeRequested
+    /** Ignores shift while the tooltip button owns it; touch paging is unchanged. */
+    Window_ShopStatus.prototype.isPageChangeRequested = function () {
+        const scene = SceneManager._scene
+        const tooltipOwnsShift =
+            gamepadTooltip.active || !!findActiveItemWindow(scene)
+        if (tooltipOwnsShift && Input.isTriggered("shift")) {
+            return TouchInput.isTriggered() && this.isTouchedInsideFrame()
+        }
+        return _Window_ShopStatus_isPageChangeRequested.call(this)
+    }
+
     //============================================================================//
     //                  SCENE_BATTLE / SCENE_MENUBASE ATTACHMENT                  //
     //============================================================================//
@@ -1254,9 +1371,17 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         _Scene_Battle_update.call(this)
         updateGamepadTooltip(this)
         updateItemTooltipHover(this)
+        updateTooltipSwap(this)
         // Zero width/height tells positionTooltipAt to flip above/below right
         // at the cursor point, rather than past the far edge of an icon/row.
-        if (this._stateTooltip.visible && !gamepadTooltip.active) {
+        // FREEZE ON CLOSE -----
+        // A closing tooltip (tooltipActive false) stays put - otherwise one
+        // dismissed by gamepad would snap to the mouse for its close animation.
+        if (
+            this._stateTooltip.visible &&
+            this._stateTooltip.tooltipActive &&
+            !gamepadTooltip.active
+        ) {
             positionTooltipAt(this, {
                 x: TouchInput.x + WauLau.StateTooltips.offsetX,
                 y: TouchInput.y + WauLau.StateTooltips.offsetY,
@@ -1324,7 +1449,13 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         _Scene_MenuBase_update.call(this)
         updateGamepadTooltip(this)
         updateItemTooltipHover(this)
-        if (this._stateTooltip.visible && !gamepadTooltip.active) {
+        updateTooltipSwap(this)
+        // See FREEZE ON CLOSE in Scene_Battle.prototype.update.
+        if (
+            this._stateTooltip.visible &&
+            this._stateTooltip.tooltipActive &&
+            !gamepadTooltip.active
+        ) {
             positionTooltipAt(this, {
                 x: TouchInput.x + WauLau.StateTooltips.offsetX,
                 y: TouchInput.y + WauLau.StateTooltips.offsetY,
@@ -1607,6 +1738,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this.fadeSpeed = 42
         this.fadeSpeedMin = 28
         this._minTooltipWidthFinal = 250
+        this.frontSpriteHue = 0
+        this.backSpriteHue = 0
+        this.backSpriteOpacity = 255
         /** Widest a line may get before wrapping; per-window so the shop window can differ. */
         this._maxTextWidth = maxTooltipWidth
         /** If true, shows/hides via open()/close() (openness) instead of fading. */
@@ -1616,7 +1750,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this.openness = this._useOpenAnimation ? 0 : 255
         /** Characters typed per frame once open; 0 draws everything instantly. */
         this._charsPerFrame = 0
-        /** @type {{text:string, y:number, state:RPG.State|null, buff:object|null}[]} */
+        /** @type {{text:string, x:number, y:number, state:RPG.State|null, buff:object|null}[]} */
         this._typewriterQueue = []
         /** @type {object|null} textState of the entry currently being typed */
         this._typewriterState = null
@@ -1629,6 +1763,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     Window_StateTooltip.prototype.update = function () {
         Window_Selectable.prototype.update.call(this)
         this.updateTypewriter()
+        this.setHue()
         // Open-animation windows are driven by open()/close() instead, which
         // Window_Base.update already animates via openness.
         if (this._useOpenAnimation) {
@@ -1686,6 +1821,15 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             this.visible = false
         }
     }
+    /** Hue-rotates the background and frame (-360..360).
+     * @param {number} hueBack the hue shift for the background sprites
+     * @param {number} hueFront the hue shift for the front sprites
+     */
+    Window_StateTooltip.prototype.setHue = function () {
+        this._backSprite.setHue(this.backSpriteHue)
+        this._frameSprite.setHue(this.frontSpriteHue)
+        this._backSprite.children[0].opacity = this.backSpriteOpacity
+    }
 
     // --------------------------------TEXT WRAPPING-------------------------------//
     // The base engine doesn't wrap text by width outside Window_Message, so
@@ -1726,25 +1870,36 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
     // --------------------------------ENTRY RENDERING-----------------------------//
 
+    /** Side length of a battler tooltip's header portrait (face cells are 144px). */
+    const TOOLTIP_PORTRAIT_SIZE = 48
+    /** Space between the header portrait and the name text. */
+    const TOOLTIP_PORTRAIT_GAP = 6
+
     /**
      * Shared by setup() and setupItem(): measures every entry's wrapped size,
      * sizes the window from the total, then draws each entry at its offset.
-     * @param {Array<{state:RPG.State|null, buff:object|null, text:string}>} rawEntries
+     * An entry with a face gets its portrait at the left, its text shifted
+     * right of it and centered vertically against it.
+     * @param {Array<{state:RPG.State|null, buff:object|null, text:string, face?:{name:string,index:number}|null}>} rawEntries
      */
     Window_StateTooltip.prototype.renderEntries = function (rawEntries) {
         const entries = rawEntries.map((entry) => {
+            const faceSize = entry.face ? TOOLTIP_PORTRAIT_SIZE : 0
+            const indent = faceSize ? faceSize + TOOLTIP_PORTRAIT_GAP : 0
             const wrappedText = wrapTooltipText(
                 this,
                 entry.text,
-                this._maxTextWidth
+                this._maxTextWidth - indent
             )
             const size = this.textSizeEx(wrappedText)
             console.debug("Wrapped and final text", wrappedText)
             return {
                 ...entry,
                 text: wrappedText,
-                width: size.width,
-                height: size.height,
+                indent,
+                textHeight: size.height,
+                width: size.width + indent,
+                height: Math.max(size.height, faceSize),
             }
         })
 
@@ -1777,17 +1932,20 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this._typewriterState = null
         let y = 0
         for (const entry of entries) {
+            if (entry.face) this.drawTooltipPortrait(entry.face, 0, y)
+            const textY = y + Math.floor((entry.height - entry.textHeight) / 2)
             if (this._charsPerFrame > 0) {
                 this._typewriterQueue.push({
                     text: entry.text,
-                    y,
+                    x: entry.indent,
+                    y: textY,
                     state: entry.state || null,
                     buff: entry.buff || null,
                 })
             } else {
                 this._state = entry.state || null
                 this._buff = entry.buff || null
-                this.drawTextEx(entry.text, 0, y, this.width)
+                this.drawTextEx(entry.text, entry.indent, textY, this.width)
             }
             y += entry.height
         }
@@ -1831,7 +1989,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this.resetFontSettings()
         this._typewriterState = this.createTextState(
             entry.text,
-            0,
+            entry.x,
             entry.y,
             this.width
         )
@@ -1878,14 +2036,48 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             text: buff.text,
         }))
 
-        // Battler's own name always leads the tooltip.
+        // Battler's own name always leads the tooltip, with the actor's
+        // face portrait beside it when they have one (enemies don't).
         const nameEntry = {
             state: null,
             buff: null,
             text: `\x1bTI[1]${battler.name()}\x1bTI[0]`,
+            face: null,
+        }
+        if (battler.isActor() && battler.faceName()) {
+            nameEntry.face = {
+                name: battler.faceName(),
+                index: battler.faceIndex(),
+            }
+            // PORTRAIT LOADING -----
+            // A face sheet that isn't loaded yet would blt as nothing, so
+            // this redraws once it arrives - unless the window has moved on
+            // to another battler or an item by then.
+            const bitmap = ImageManager.loadFace(nameEntry.face.name)
+            if (!bitmap.isReady()) {
+                bitmap.addLoadListener(() => {
+                    if (this._battler === battler) this.setup(battler)
+                })
+            }
         }
 
         this.renderEntries([nameEntry].concat(stateEntries, buffEntries))
+    }
+
+    /**
+     * Draws a face sheet cell scaled down to TOOLTIP_PORTRAIT_SIZE square.
+     * @param {{name:string, index:number}} face
+     * @param {number} x
+     * @param {number} y
+     */
+    Window_StateTooltip.prototype.drawTooltipPortrait = function (face, x, y) {
+        const bitmap = ImageManager.loadFace(face.name)
+        const pw = ImageManager.faceWidth
+        const ph = ImageManager.faceHeight
+        const sx = (face.index % 4) * pw
+        const sy = Math.floor(face.index / 4) * ph
+        const size = TOOLTIP_PORTRAIT_SIZE
+        this.contents.blt(bitmap, sx, sy, pw, ph, x, y, size, size)
     }
 
     //============================================================================//
@@ -2715,6 +2907,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             :   description
     }
 
+    //============================================================================//
+    //                        TOOLTIP ENTRY AND PROCESSING                        //
+    //============================================================================//
+
     /** Full tooltip text for a weapon/armor/item row. @param {RPG.BaseItem} item @returns {string|null} */
     function itemTooltipEntryText(item, type) {
         const kind =
@@ -2766,6 +2962,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
+    let HUE_BACK_AMT = 20
+    let HUE_FRONT_AMT = 20
+
     /** Builds and renders a weapon/armor/item's tooltip.
      * @param {RPG.BaseItem} item
      * @param {String} [type = "Tooltip"] - Use "Tooltip" to show as a tooltip, and "Shop" to show as a shop window for dialogue shops. Defaults to "Tooltip"
@@ -2780,6 +2979,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this._item = item
 
         const text = itemTooltipEntryText(item, type)
+
         if (text === "") return false
         this.renderEntries([
             { state: null, buff: null, text: text || item.name },
@@ -3110,10 +3310,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             lineEnd === -1 ? undefined : lineEnd
         )
         const restWidth = this.measureRestOfLine(textState, rest)
+        // Contents-space edge, not relative to startX: entries indented by
+        // a portrait already have that indent counted in _rightAlignEdge.
         const edge = this._rightAlignEdge || this.contentsWidth()
         textState.x = Math.max(
             textState.x + RIGHT_ALIGN_MIN_GAP,
-            textState.startX + edge - restWidth
+            edge - restWidth
         )
     }
 
@@ -3453,6 +3655,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         // Same contract as the tooltips: the window's own update() opens or
         // closes it from tooltipActive - calling open()/close() here instead
         // would just be undone by that update() the next frame.
+        this._dialogueShopInfo.frontSpriteHue = -0
+        this._dialogueShopInfo.backSpriteHue = 0
+        this._dialogueShopInfo.backOpacity = 192
         this._dialogueShopInfo.tooltipActive = hasContent
     }
 
