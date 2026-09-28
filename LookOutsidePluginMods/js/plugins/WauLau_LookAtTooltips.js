@@ -70,10 +70,14 @@
  * stuck showing on top of whatever opens next.
  *
  * 5.) Dialogue shops:
- * Shops that sell through map events + common event 46 (BuyItemTable, e.g.
- * Eugene's) instead of the Shop scene show the item's stat block in a fixed
- * window in the bottom-left for as long as that common event runs. The item is
- * read from variable 481, which each shop item event sets before calling 46.
+ * Shops that sell through map events instead of the Shop scene show the item's
+ * stat block in a fixed window in the bottom-left while the Buy dialogue runs:
+ *   - Eugene's (common event 46, BuyItemTable): for as long as that common
+ *     event runs. The item is read from variable 481, which each shop item
+ *     event sets before calling 46.
+ *   - Mutt's (common event 291, MuttSpecialPrice): from that call until the
+ *     calling event's Buy choice ends. The item is the first one that event
+ *     page grants with Change Items/Weapons/Armors.
  * Meanwhile the message window moves to the right of it: narrowed to the
  * remaining width, its text re-wrapped to fit, and grown upward by whole
  * lines if the wrapped text needs more than its usual 4 rows.
@@ -232,6 +236,13 @@
  * @type number
  * @min 50
  * @default 320
+ *
+ * @param shopFontOffset
+ * @text Shop Window Font Offset
+ * @desc Added to every tooltip font size (normal, bold, label, title, etc.) in the dialogue shop info window only. Negative values shrink it.
+ * @type number
+ * @min -10
+ * @default 0
  *
  * @param gamepadToggleButton
  * @text Gamepad Toggle Button Index
@@ -419,6 +430,32 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     )
 
     const decimalPlaces = Number(params.decimalPlaces || 0)
+
+    const enemyPercentOnly = params.enemyPercentOnly !== "false"
+    const maxTooltipWidth = Number(params.maxWidth || 500)
+    const maxShopInfoWidth = Number(params.shopMaxWidth || 204)
+
+    // ------------------------ESCAPE CHARACTER VARIABLES------------------------//
+    // Outline width/color for the fake-bold effect (see FONT-BOLD FIX below) -
+    // set directly here, at the same time as fontBold/color, rather than
+    // derived later from a single shared color when the outline is actually
+    // drawn - so each bold variant's outline matches ITS OWN color (inline/
+    // stat/bold) instead of every \B/\BI/\BS style sharing one outline color.
+    const BOLD_OUTLINE_WIDTH = 3
+    const NORMAL_OUTLINE_WIDTH = 1
+    const NORMAL_SPACING_WIDTH = "0px"
+    const BOLD_SPACING_WIDTH = "2px"
+    const NORMAL_OUTLINE_COLOR = "rgba(0, 0, 0, 0)"
+
+    const TEXT_SIZE_NORMAL = 16
+    const TEXT_SIZE_BOLD = TEXT_SIZE_NORMAL
+    const TEXT_SIZE_LABEL = 18
+    const TEXT_SIZE_SUBTITLE = 20
+    const TEXT_SIZE_TITLE = 22
+    const TEXT_SIZE_DESCRIPTION = 14
+
+    const shopFontOffset = Number(params.shopFontOffset || 3)
+
     const textColor = Number(params.textColor || 0)
     const boldColor = Number(params.boldColor || 0)
     const labelColor = Number(params.labelColor || 22)
@@ -428,10 +465,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     const inlineColor = Number(params.inlineColor || 1)
     const statColor = Number(params.statColor || 1)
     const boldOutlineColor = Number(params.boldOutlineColor || 12)
-
-    const enemyPercentOnly = params.enemyPercentOnly !== "false"
-    const maxTooltipWidth = Number(params.maxWidth || 500)
-    const maxShopInfoWidth = Number(params.shopMaxWidth || 204)
+    let M_hexColorMap = new Map() //Map containing index colors as hex colors as <Index : Hex>
 
     // Registers new gamepad symbols on buttons 6/7/8 (triggers + back/select),
     // which the engine's own Input.gamepadMapper leaves unused. Configurable
@@ -852,7 +886,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      * @memberof Scene_MenuBase
      */
     function hideTooltip(scene) {
-        //scene._stateTooltip.visible = false
+        scene._stateTooltip.close()
         scene._stateTooltip.tooltipActive = false
     }
 
@@ -865,7 +899,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         scene._stateTooltip.setupItem(item, "Tooltip")
         scene._stateTooltip.visible = true
         scene._stateTooltip.tooltipActive = true
-        scene._stateTooltip.openness = 0
+        //scene._stateTooltip.openness = 0
         scene._tooltipItemMode = true
         scene.addChild(scene._stateTooltip)
     }
@@ -1090,27 +1124,47 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         const TOOLTIP_HOVER_DELAY_FRAMES = 15
 
         if (hoveredItem) {
-            if (hoveredItem === scene._tooltipHoveredItem) return // already showing it
-            if (scene._tooltipItemMode) {
-                // A tooltip is already up: switch items instantly, no new delay.
+            // SWAP IN PROGRESS -----
+            // The old tooltip is still closing: keep tracking whatever is
+            // hovered now, and open that item's tooltip (no delay) the frame
+            // the close finishes - so the one that opens is always the new one.
+            if (scene._tooltipSwapItem) {
+                scene._tooltipSwapItem = hoveredItem
+                if (scene._stateTooltip.openness > 0) return
+                console.log("Swap closed - Open new")
+                scene._tooltipSwapItem = null
                 scene._tooltipHoveredItem = hoveredItem
                 showItemTooltip(scene, hoveredItem)
+                return
+            }
+            if (hoveredItem === scene._tooltipHoveredItem) {
+                console.log("Same - Return")
+                return // already showing it
+            }
+            // openness > 0, not isOpen(): a tooltip that's still opening
+            // counts as up too, or a fast switch would skip the close.
+            if (scene._tooltipItemMode && scene._stateTooltip.openness > 0) {
+                console.log("TT Already Up - Close, then swap")
+                // hideTooltip, not close(): it clears tooltipActive, which
+                // the window's own update() would otherwise reopen from.
+                scene._tooltipSwapItem = hoveredItem
+                scene._tooltipPendingItem = null
+                scene._tooltipDelayFrames = 8
+                hideTooltip(scene)
             } else if (hoveredItem !== scene._tooltipPendingItem) {
                 // New hover (or moved to another item mid-wait): restart the countdown.
-                if (scene._stateTooltip._useOpenAnimation) {
-                    scene._tooltipHoveredItem = hoveredItem
-                    showItemTooltip(scene, hoveredItem)
-                    return
-                }
+                console.log("New hover - Start cooldown")
                 scene._tooltipPendingItem = hoveredItem
                 scene._tooltipDelayFrames = TOOLTIP_HOVER_DELAY_FRAMES
             } else if (--scene._tooltipDelayFrames <= 0) {
+                console.log("Delay finished - Show tt")
                 scene._tooltipPendingItem = null
                 scene._tooltipHoveredItem = hoveredItem
                 showItemTooltip(scene, hoveredItem)
             }
         } else {
             scene._tooltipPendingItem = null // cancels any wait in progress
+            scene._tooltipSwapItem = null // the closing tooltip just stays closed
             if (scene._tooltipHoveredItem) {
                 scene._tooltipHoveredItem = null
                 if (scene._tooltipItemMode) {
@@ -1853,14 +1907,27 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         [8, 40], //Hit Rate - Eye
         [9, 861], //Evasion - Target
     ])
+    /**A map tying the 8 trait parameters to a fitting icon from System/IconSet.png.
+     * The key is the id of the parameter and the value is the id of the icon.
+     * */
+    const traitParamIconMap = new Map([
+        [0, 515], //MaxHP - Heart
+        [1, 23], //MaxSTM - Bolt
+        [2, 678], //ATK - Knife
+        [3, 859], //DEF - Shield
+        [4, 192], //B.ATK - Gun
+        [5, 852], //B.DEF - Military Helmet
+        [6, 86], //Agility - Motorbike
+        [7, 580], //Luck - Dice
+    ])
     /**A map tying the 10 EXparameters to a fitting icon from System/IconSet.png.
      * The key is the id of the EXparameter and the value is the id of the icon.
      * */
     const exParamIconMap = new Map([
         [0, 40], //Hit Rate - Eye
         [1, 861], //Evasion - Target
-        [2, 13], //Crit - Target
-        [3, 1098], //Crit Evasion - Target
+        [2, 275], //Crit - Laser
+        [3, 1098], //Crit Evasion - Boot
         [4, 0], //Magic Evasion - null
         [5, 0], //Magic Deflect - null
         [6, 733], //Counter - Target
@@ -1896,6 +1963,35 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         Object.entries(variants).forEach(([stateId, label], order) => {
             stateVariationById.set(Number(stateId), { group, label, order })
         })
+    }
+
+    /**
+     * Display a shortened name for a trait param (TRAIT.PARAM [21] dataId, fixed engine order:
+     * Max HP, Max MP, Attack, Defense, M.Attack, M.Defense, Agility, Luck).
+     * @param {number} paramId
+     * @returns {string|null}
+     */
+    function traitParamNameShort(paramId) {
+        switch (paramId) {
+            case 0:
+                return "MaxHP"
+            case 1:
+                return "MaxSTM"
+            case 2:
+                return "Atk"
+            case 3:
+                return "Def"
+            case 4:
+                return "Ball."
+            case 5:
+                return "B.Def"
+            case 6:
+                return "Agi"
+            case 7:
+                return "Luck"
+            default:
+                return null
+        }
     }
 
     /**
@@ -2021,57 +2117,42 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return scope
     }
 
-    /** Finds the best suited primary item type based on the items types
-     * @param {string[]} arr - an array with all od the item types
-     * @returns {string}
+    const MAX_ITEM_TYPES = 2
+
+    /**
+     * Item type labels in priority order - itemTypeLine shows the first
+     * MAX_ITEM_TYPES that match. Every rule is tested independently, so
+     * unlike switch fallthrough, a match never forces the rules below it.
+     * @type {Array<[string, function(string[], RPG.Item): boolean]>}
+     */
+    const ITEM_TYPE_RULES = [
+        ["Crafting Item", (tags) => tags.includes("CRAFT")],
+        [
+            "Food",
+            (tags) =>
+                ["FOOD", "SNACK", "SANDWICH"].some((t) => tags.includes(t)),
+        ],
+        ["Cooking Ingredient", (tags) => tags.includes("COOK")],
+        ["Coin", (tags) => tags.includes("COIN")],
+        ["Healing", (tags) => tags.includes("MEDICAL")],
+        ["Combat Item", (_, item) => item.occasion === 1],
+        ["Valuable", (tags) => tags.includes("VALUABLES")],
+        ["Planetary Disc", (tags) => tags.includes("DISCOBJ")],
+    ]
+
+    /** Finds the best suited item type(s) based on the item's types
+     * @param {string[]} arr - an array with all of the item types
+     * @param {RPG.Item} item
+     * @returns {string} up to MAX_ITEM_TYPES labels joined by " & ", or the
+     *   description's leading [bracket] note / "Item" if none match
      */
     function itemTypeLine(arr, item) {
-        let itemType = ""
         if (!Array.isArray(arr)) return "Item"
-        switch (true) {
-            case arr.includes("CRAFT"):
-                itemType = "Crafting Item"
-                break
-            case arr.includes("FOOD"):
-                itemType = "Food"
-                break
-            case arr.includes("SNACK"):
-                itemType = "Food"
-                break
-            case arr.includes("SANDWICH"):
-                itemType = "Food"
-                break
-            case arr.includes("COOK"):
-                itemType = "Cooking Ingredient"
-                break
-            case arr.includes("COIN"):
-                itemType = "Coin"
-                break
-            case arr.includes("MEDICAL"):
-                itemType = "Healing"
-                break
-            case item.occasion === 1:
-                itemType = "Combat Item"
-                break
-            case arr.includes("VALUABLES"):
-                itemType = "Valuable"
-                break
-            case arr.includes("DISCOBJ"):
-                itemType = "Planetary Disc"
-                break
-            default:
-                const bracketText = getTextFromLeadingBracketNote(
-                    item.description
-                )
-                if (bracketText !== "") {
-                    itemType = bracketText
-                    break
-                } else {
-                    itemType = "Item"
-                    break
-                }
-        }
-        return itemType
+        const itemTypes = ITEM_TYPE_RULES.filter(([, test]) => test(arr, item))
+            .map(([label]) => label)
+            .slice(0, MAX_ITEM_TYPES)
+        if (itemTypes.length > 0) return itemTypes.join(" & ")
+        return getTextFromLeadingBracketNote(item.description) || "Item"
     }
 
     //============================================================================//
@@ -2100,21 +2181,53 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             )
         }
 
-        const exParams = item.traits
-            .filter(
-                (t) => t.code === Game_BattlerBase.TRAIT_XPARAM && t.value !== 0
+        for (const t of item.traits) {
+            if (!t.code) continue
+            let name = ""
+            let icon = ""
+            let percent = 0
+            let sign = ""
+            if (t.code === Game_BattlerBase.TRAIT_SPARAM) {
+                switch (t.dataId) {
+                    case 0:
+                        name = "Target Rate"
+                        icon = 13
+                        break
+                    case 6:
+                        name = "Dmg Taken"
+                        icon = 73
+                        break
+                    case 7:
+                        name = "B.Dmg Taken"
+                        icon = 73
+                        break
+                    default:
+                        continue
+                }
+
+                percent = Math.round(t.value * 100)
+                sign = percent > 0 ? "+" : ""
+                if (!name) return null
+            } else if (t.code === Game_BattlerBase.TRAIT_PARAM) {
+                if (t.value === 0) continue
+                name = paramNameShort(t.dataId)
+                icon = traitParamIconMap.get(t.dataId)
+                percent = Math.round(t.value * 100) - 100
+                sign = percent > 0 ? "+" : ""
+                if (!name) continue
+            } else if (t.code === Game_BattlerBase.TRAIT_XPARAM) {
+                if (t.value === 0) continue
+                name = xparamNameShort(t.dataId)
+                icon = exParamIconMap.get(t.dataId)
+                percent = Math.round(t.value * 100)
+                sign = percent > 0 ? "+" : ""
+                if (!name || name === "Hit Rate") continue
+            } else continue
+
+            lines.push(
+                `\\I[${icon}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}%\\BS[0]`
             )
-            .map((t) => {
-                const name = xparamNameShort(t.dataId)
-                if (!name || name === "Hit Rate") return null
-                const percent = Math.round(t.value * 100)
-                const sign = percent > 0 ? "+" : ""
-                const icon = exParamIconMap.get(t.dataId)
-                lines.push(
-                    `\\I[${icon}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}%\\BS[0]`
-                )
-            })
-            .filter(Boolean)
+        }
 
         if (lines.length === 0) return null
         lines.splice(0, 0, `\\LB[1]Stats\\LB[0]`)
@@ -2639,7 +2752,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             const text = statLines.length > 1 ? `${statLines.join("\n")}` : ""
             const capitalized = text.replace(
                 /(^\w|\s\w|\]\w)(\S*)/g,
-                (_, m1, m2) => m1.toUpperCase()
+                (_, m1, m2) => m1.toUpperCase() + m2
             )
             return capitalized
         } else {
@@ -2647,7 +2760,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             const text = `\\TI[1]${item.name}\\I[${item.iconIndex}]\\TI[0]\n${statLines.join("\n")}`
             const capitalized = text.replace(
                 /(^\w|\s\w|\]\w)(\S*)/g,
-                (_, m1, m2) => m1.toUpperCase()
+                (_, m1, m2) => m1.toUpperCase() + m2
             )
             return `${capitalized}${flavorText}`
         }
@@ -2834,26 +2947,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return hex
     }
 
-    // ------------------------ESCAPE CHARACTER VARIABLES------------------------//
-    // Outline width/color for the fake-bold effect (see FONT-BOLD FIX below) -
-    // set directly here, at the same time as fontBold/color, rather than
-    // derived later from a single shared color when the outline is actually
-    // drawn - so each bold variant's outline matches ITS OWN color (inline/
-    // stat/bold) instead of every \B/\BI/\BS style sharing one outline color.
-    const BOLD_OUTLINE_WIDTH = 3
-    const NORMAL_OUTLINE_WIDTH = 1
-    const NORMAL_SPACING_WIDTH = "0px"
-    const BOLD_SPACING_WIDTH = "2px"
-    const NORMAL_OUTLINE_COLOR = "rgba(0, 0, 0, 0)"
-    const BOLD_OUTLINE_ALPHA = "ff"
-    const TEXT_SIZE_NORMAL = 18
-    const TEXT_SIZE_BOLD = TEXT_SIZE_NORMAL
-    const TEXT_SIZE_LABEL = 20
-    const TEXT_SIZE_SUBTITLE = 24
-    const TEXT_SIZE_TITLE = 27
-    const TEXT_SIZE_DESCRIPTION = 14
-    let M_hexColorMap = new Map() //Map containing index colors as hex colors as <Index : Hex>
-
     /**
      * Adds this plugin's own bold/italic/color escape codes on top of the
      * engine's defaults: \BI (bold, inline color), \BS (bold, stat color),
@@ -2881,9 +2974,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_BOLD
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_BOLD)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2901,9 +2994,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_BOLD
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_BOLD)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2921,9 +3014,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_BOLD
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_BOLD)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2936,9 +3029,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.processColorChange(on ? labelColor : textColor)
                 this.outlineWidth = 6
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_LABEL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_LABEL)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2946,9 +3039,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 const on = !!this.obtainEscapeParam(textState)
                 this.processColorChange(on ? subtitleColor : textColor)
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_SUBTITLE
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_SUBTITLE)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2956,9 +3049,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 const on = !!this.obtainEscapeParam(textState)
                 this.processColorChange(on ? titleColor : textColor)
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_TITLE
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_TITLE)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2967,10 +3060,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.processColorChange(on ? descColor : textColor)
                 if (on) {
                     this.contents.fontItalic = true
-                    this.contents.fontSize = TEXT_SIZE_DESCRIPTION
+                    this.contents.fontSize = this.textSize(
+                        TEXT_SIZE_DESCRIPTION
+                    )
                 } else {
                     this.contents.fontItalic = false
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
                 break
             }
@@ -2983,7 +3078,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.contents.fontItalic = false
                 this.contents.outlineWidth = NORMAL_OUTLINE_WIDTH
                 this.contents.outlineColor = NORMAL_OUTLINE_COLOR
-                this.contents.fontSize = TEXT_SIZE_NORMAL
+                this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 Window_Base.prototype.processEscapeCharacter.call(
                     this,
                     code,
@@ -3065,13 +3160,26 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return probe.outputWidth
     }
 
+    // FONT SIZE OFFSET -----
+    // Every TEXT_SIZE_* constant is the *tooltip* size; each window adds its
+    // own _fontSizeOffset on top (0 for tooltips, shopFontOffset for the
+    // dialogue shop window). All font-size writes - drawing, measuring, and
+    // line-height lookahead - go through here so they always agree.
+    /**
+     * @param {number} baseSize - one of the TEXT_SIZE_* constants
+     * @returns {number} that size adjusted for this window
+     */
+    Window_StateTooltip.prototype.textSize = function (baseSize) {
+        return baseSize + (this._fontSizeOffset || 0)
+    }
+
     Window_StateTooltip.prototype.resetFontSettings = function () {
         Window_Base.prototype.resetFontSettings.call(this)
         this.contents.fontBold = false
         this.contents.fontItalic = false
         this.contents.outlineWidth = NORMAL_OUTLINE_WIDTH
         this.contents.outlineColor = NORMAL_OUTLINE_COLOR
-        this.contents.fontSize = TEXT_SIZE_NORMAL
+        this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
     }
 
     // LINE-HEIGHT FIX -----------------------------
@@ -3098,27 +3206,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 this.contents.fontSize = parseInt(array[3])
             } else if (code === "TI") {
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_TITLE
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_TITLE)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
             } else if (code === "ST") {
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_TITLE
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_SUBTITLE)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
             } else if (code === "LB") {
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_LABEL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_LABEL)
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
             } else if (code === "DE") {
                 if (on) {
-                    this.contents.fontSize = TEXT_SIZE_DESCRIPTION
+                    this.contents.fontSize = this.textSize(
+                        TEXT_SIZE_DESCRIPTION
+                    )
                 } else {
-                    this.contents.fontSize = TEXT_SIZE_NORMAL
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
                 }
             }
             if (this.contents.fontSize > maxFontSize) {
@@ -3135,10 +3245,11 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     // 2px shorter than a message window line. Deriving the spacing from
     // TEXT_SIZE_NORMAL instead makes a plain line exactly lineHeight() tall -
     // the same as Window_Message - while bigger/smaller lines (\TI, \LB, \DE)
-    // keep the same spacing around their own font size.
+    // keep the same spacing around their own font size. Uses this window's
+    // offset size, so shop lines keep matching the message window beside it.
     /** @param {object} textState @returns {number} */
     Window_StateTooltip.prototype.calcTextHeight = function (textState) {
-        const lineSpacing = this.lineHeight() - TEXT_SIZE_NORMAL
+        const lineSpacing = this.lineHeight() - this.textSize(TEXT_SIZE_NORMAL)
         const lastFontSize = this.contents.fontSize
         const lines = textState.text.slice(textState.index).split("\n")
         const textHeight = this.maxFontSizeInLine(lines[0]) + lineSpacing
@@ -3160,39 +3271,109 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     //============================================================================//
     //                        DIALOGUE SHOP INFO WINDOW                           //
     //============================================================================//
-    // "Dialogue shops" (e.g. Eugene's) aren't Scene_Shop: each item is a map
-    // event that stores its $dataItems/$dataWeapons/$dataArmors object in
-    // variable 481, then calls common event 46 (BuyItemTable), which runs the
-    // Buy/Haggle/Leave choice as ordinary messages. While that common event
-    // runs, a fixed window in the bottom-left shows the same stat block the item
-    // tooltips use.
+    // "Dialogue shops" aren't Scene_Shop: each item is a map event that runs
+    // the Buy choice as ordinary messages. While one is open, a fixed window in
+    // the bottom-left shows the same stat block the item tooltips use. Each
+    // shop is recognized by the common event its item events call:
+    //   - Eugene's: the event stores its $dataItems/$dataWeapons/$dataArmors
+    //     object in variable 481, then calls common event 46 (BuyItemTable),
+    //     which runs the whole Buy/Haggle/Leave dialogue itself.
+    //   - Mutt's (Map056): the event calls common event 291 (MuttSpecialPrice),
+    //     which only adjusts the price in variable 7 - the event page itself
+    //     runs the Buy choice and grants the item, so the item is read from
+    //     that page's first Change Items/Weapons/Armors command.
 
-    const DIALOGUE_SHOP_COMMON_EVENT_ID = 46
     const DIALOGUE_SHOP_ITEM_VAR_ID = 481
     // Window_Message types 1/frame; a stat block is several times longer
     // than a message, so it types faster to finish in a similar time.
     const SHOP_TYPEWRITER_CHARS_PER_FRAME = 1
 
     /**
+     * Common events that open a dialogue shop, by ID.
+     * - findItem: the item on sale, given the interpreter that called the
+     *   common event (its _index is still on the Call Common Event command).
+     * - followsCaller: false if the shop lasts while the common event itself
+     *   runs; true if it lasts through the calling event page's Buy choice.
+     * @type {Object<number, {findItem: function(Game_Interpreter): (RPG.BaseItem|null), followsCaller: boolean}>}
+     */
+    const DIALOGUE_SHOP_TRIGGERS = {
+        46: {
+            findItem: () => $gameVariables.value(DIALOGUE_SHOP_ITEM_VAR_ID),
+            followsCaller: false,
+        },
+        291: {
+            findItem: (caller) => findGrantedItem(caller._list, caller._index),
+            followsCaller: true,
+        },
+    }
+
+    /**
      * The dialogue shop currently open, or null.
-     * @type {{item: RPG.BaseItem, interpreter: Game_Interpreter}|null}
+     * - interpreter/list: the shop is open while interpreter is still running list.
+     * - endIndex: index of the Buy choice's closing End command in list (the
+     *   shop closes once the interpreter moves past it), or -1 to run to the end.
+     * @type {{item: RPG.BaseItem, interpreter: Game_Interpreter, list: Array, endIndex: number}|null}
      */
     let dialogueShop = null
+
+    /**
+     * The first item/weapon/armor a command list grants, from fromIndex on.
+     * @param {Array} list - An event page or common event command list.
+     * @param {number} fromIndex
+     * @returns {RPG.BaseItem|null}
+     */
+    function findGrantedItem(list, fromIndex) {
+        for (let i = fromIndex; i < list.length; i++) {
+            const { code, parameters } = list[i]
+            // parameters[1]: 0 = Increase, 1 = Decrease.
+            if (parameters[1] !== 0) continue
+            if (code === 126) return $dataItems[parameters[0]]
+            if (code === 127) return $dataWeapons[parameters[0]]
+            if (code === 128) return $dataArmors[parameters[0]]
+        }
+        return null
+    }
+
+    /**
+     * Index of the End command (404) closing the first Show Choices (102)
+     * at or after fromIndex, or -1 if there's none.
+     * @param {Array} list
+     * @param {number} fromIndex
+     * @returns {number}
+     */
+    function findChoiceEnd(list, fromIndex) {
+        const start = list.findIndex((c, i) => i >= fromIndex && c.code === 102)
+        if (start < 0) return -1
+        const indent = list[start].indent
+        return list.findIndex(
+            (c, i) => i > start && c.code === 404 && c.indent === indent
+        )
+    }
 
     /**
      * Runs whenever a common event is started, before its first command executes.
      * @param {number} commonEventId - Index into $dataCommonEvents.
      * @param {string} source - "call" (Common Event command in an event page)
      *   or "reserve" (item/skill effect or script; runs once the map interpreter is free).
-     * @param {Game_Interpreter|null} interpreter - The child interpreter that will
-     *   run it ("call" only; reserved events have no interpreter yet).
+     * @param {Game_Interpreter|null} caller - The interpreter running the Call
+     *   Common Event command ("call" only; reserved events have no caller).
      */
-    function onCommonEventStart(commonEventId, source, interpreter) {
-        if (commonEventId !== DIALOGUE_SHOP_COMMON_EVENT_ID || !interpreter)
-            return
-        const item = $gameVariables.value(DIALOGUE_SHOP_ITEM_VAR_ID)
+    function onCommonEventStart(commonEventId, source, caller) {
+        const trigger = DIALOGUE_SHOP_TRIGGERS[commonEventId]
+        if (!trigger || !caller) return
+        const item = trigger.findItem(caller)
         if (!item || !item.name) return
-        dialogueShop = { item, interpreter }
+        const interpreter =
+            trigger.followsCaller ? caller : caller._childInterpreter
+        dialogueShop = {
+            item,
+            interpreter,
+            list: interpreter._list,
+            endIndex:
+                trigger.followsCaller ?
+                    findChoiceEnd(interpreter._list, interpreter._index)
+                :   -1,
+        }
     }
 
     // COMMON EVENT ID -----
@@ -3202,13 +3383,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     const _Game_Interpreter_command117 = Game_Interpreter.prototype.command117
     /** Reports the common event after the original has built its child interpreter. */
     Game_Interpreter.prototype.command117 = function (params) {
-        let result = ""
-        if (params[0] === DIALOGUE_SHOP_COMMON_EVENT_ID) {
-            result = _Game_Interpreter_command117.call(this, params)
-        } else {
-            result = _Game_Interpreter_command117.call(this, params)
-        }
-        onCommonEventStart(params[0], "call", this._childInterpreter)
+        const result = _Game_Interpreter_command117.call(this, params)
+        onCommonEventStart(params[0], "call", this)
         return result
     }
 
@@ -3230,6 +3406,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         const win = new Window_StateTooltip()
         this._dialogueShopInfo = win
         win._maxTextWidth = maxShopInfoWidth
+        win._fontSizeOffset = shopFontOffset
         // Open/close like the message window (expand/squish from the center,
         // not the tooltips' top-down unroll) and type its text out.
         win._openFromTop = false
@@ -3248,12 +3425,27 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     // SHOP CLOSE DETECTION -----
-    // The shop counts as open for as long as common event 46's own child
-    // interpreter is still running - through the choice and any follow-up
-    // messages - and closes the frame that interpreter finishes.
+    // The shop closes the frame its interpreter stops running the list it
+    // opened on, or moves past endIndex. Comparing the list, not just
+    // isRunning(), matters for Mutt's: those pages are autorun, and when one
+    // ends, Game_Map.updateInterpreter starts the next autorun page (set up
+    // by the same page's self switch) on the *same* map interpreter within the
+    // same frame, so isRunning() never reads false in between.
+    /**
+     * @param {NonNullable<typeof dialogueShop>} shop
+     * @returns {boolean}
+     */
+    function isDialogueShopOver(shop) {
+        const { interpreter, list, endIndex } = shop
+        return (
+            interpreter._list !== list ||
+            (endIndex >= 0 && interpreter._index > endIndex)
+        )
+    }
+
     /** Shows or hides the info window to match dialogueShop, restoring the message window on close. */
     Scene_Map.prototype.updateDialogueShopInfo = function () {
-        if (dialogueShop && !dialogueShop.interpreter.isRunning()) {
+        if (dialogueShop && isDialogueShopOver(dialogueShop)) {
             dialogueShop = null
             this._messageWindow.restoreDialogueShopLayout()
         }
