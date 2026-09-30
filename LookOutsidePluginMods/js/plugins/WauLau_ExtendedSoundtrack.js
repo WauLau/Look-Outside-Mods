@@ -1,4 +1,4 @@
-/*
+/*:
  * @target MZ
  * @author WauLau
  * @plugindesc (v1.3) Additional functions and overrides to support the "Extended Soundtrack" mod for Look Outside.
@@ -8,6 +8,60 @@
  *
  * The plugin is intended as a mod and not an actual plugin for developer usage. The plugin contains
  * targeted overrides and functions to enable additional support for "Look Outside" version 2.3 specifically.
+ *
+ * Day/night music: songs are picked by variable 122 (<= 1 day, >= 2 night).
+ * If the time of day changes while a day/night song is playing on the map,
+ * it crossfades to the other song. Set up either:
+ * - in data/WauLau_BgmReplacements.json (rules with a "night" song), which
+ *   catches the game's own Play BGM commands and map autoplay, or
+ * - with the "Play BGM (Day/Night)" plugin command in the event editor.
+ *
+ * @command playDayNightBgm
+ * @text Play BGM (Day/Night)
+ * @desc Plays the day or night song depending on the time of day (variable 122).
+ *
+ * @arg day
+ * @text Day BGM
+ * @desc Song played during the day.
+ * @type file
+ * @dir audio/bgm/
+ * @require 1
+ *
+ * @arg night
+ * @text Night BGM
+ * @desc Song played at night. Empty: the day song is used.
+ * @type file
+ * @dir audio/bgm/
+ * @require 1
+ *
+ * @arg volume
+ * @text Volume
+ * @type number
+ * @min 0
+ * @max 100
+ * @default 90
+ *
+ * @arg pitch
+ * @text Pitch
+ * @type number
+ * @min 50
+ * @max 150
+ * @default 100
+ *
+ * @arg pan
+ * @text Pan
+ * @type number
+ * @min -100
+ * @max 100
+ * @default 0
+ *
+ * @arg follow
+ * @text Follow Time Changes
+ * @desc Crossfade to the other song if the time of day changes while this one is playing.
+ * @type boolean
+ * @on Crossfade
+ * @off Keep playing
+ * @default true
  */
 
 ;(() => {
@@ -28,18 +82,26 @@
     // -------------------------TITLE/SPLASH BGM FADEIN--------------------------//
     const _Scene_Title_playTitleMusic = Scene_Title.prototype.playTitleMusic
     Scene_Title.prototype.playTitleMusic = function () {
-        if (AudioManager._bgmBuffer) {
-            if (AudioManager._bgmBuffer.name !== "TheWindow_VaporWave") {
-                AudioManager.playBgm($dataSystem.titleBgm) //fade in if the player is returning to title etc.
-                AudioManager._bgmBuffer.fadeIn(3)
-            }
+        if (
+            AudioManager._bgmBuffer &&
+            AudioManager._bgmBuffer.name === "TheWindow_VaporWave"
+        ) {
+            return
         }
+        AudioManager.playBgm({
+            name: "TheWindow_VaporWave",
+            volume: 90,
+            pitch: 100,
+            pan: 0,
+            pos: 0,
+        }) //fade in if the player is returning to title etc.
+        AudioManager._bgmBuffer.fadeIn(3)
         AudioManager.stopBgs()
         AudioManager.stopMe()
     }
 
     //============================================================================//
-    //                           DAY/NIGHT MAP MUSIC                              //
+    //                              DAY/NIGHT MUSIC                               //
     //============================================================================//
 
     /** Game variable holding the window/time-of-day state (<= 1 day, >= 2 night). */
@@ -47,64 +109,29 @@
     /** Frames to wait for the old song's fade-out before starting the new one. */
     const DAY_NIGHT_FADE_FRAMES = 60
 
-    /**
-     * Maps whose music is picked by time of day instead of the map's own BGM.
-     * Key: map ID. Value: { day, night } audio objects.
-     */
-    const DAY_NIGHT_MAPS = new Map([
-        [
-            56, // Mutts Fish And Chips
-            {
-                day: {
-                    name: "MuttsFishAndChips",
-                    pan: 0,
-                    pitch: 100,
-                    volume: 90,
-                },
-                night: {
-                    name: "MuttsFishAndChips_VaporWave",
-                    pan: 0,
-                    pitch: 100,
-                    volume: 90,
-                },
-            },
-        ],
-    ])
+    /** @typedef {{ day: object, night: object }} DayNightPair */
 
     /**
-     * Day/night playback state. Module-level, not on Scene_Map, so it survives
-     * the scene being rebuilt after menus and battles.
-     * @type {{ mapId: number, song: object|null, fadeFrames: number }}
-     */
-    let dayNight = { mapId: 0, song: null, fadeFrames: 0 }
-
-    /**
-     * @param {{ day: object, night: object }} entry
+     * @param {DayNightPair} pair
      * @returns {object} The song for the current time of day.
      */
-    function dayNightSong(entry) {
+    function dayNightSong(pair) {
         return $gameVariables.value(WINDOW_STATE_VAR) >= 2 ?
-                entry.night
-            :   entry.day
+                pair.night
+            :   pair.day
     }
 
-    // AUTOPLAY -----
-    // Replaces the map's autoplay BGM instead of turning $dataMap.autoplayBgm
-    // off: MUSH_Audio_Engine treats autoplayBgm === false as "use the parent
-    // map's music" and plays that asynchronously a few frames later.
-    const _Game_Map_autoplay = Game_Map.prototype.autoplay
-    /** Plays the day/night song on arrival for maps in DAY_NIGHT_MAPS. */
-    Game_Map.prototype.autoplay = function () {
-        const entry = DAY_NIGHT_MAPS.get(this.mapId())
-        if (!entry || $gamePlayer.isInVehicle()) {
-            _Game_Map_autoplay.call(this)
-            return
-        }
-        const song = dayNightSong(entry)
-        dayNight = { mapId: this.mapId(), song, fadeFrames: 0 }
-        AudioManager.playBgm(song)
-        if ($dataMap.autoplayBgs) AudioManager.playBgs($dataMap.bgs)
+    // ACTIVE PAIR -----
+    // The last day/night pair that was played, kept on $gameSystem so it's in
+    // save files. The crossfade only acts while one of its two songs is the
+    // current BGM, so a stale pair (after other music took over) is harmless.
+    /** @param {DayNightPair} pair */
+    function setActiveDayNightPair(pair) {
+        if ($gameSystem) $gameSystem._dayNightBgm = pair
     }
+
+    /** Crossfade in progress: the song to start once the fade-out finishes. */
+    let dayNightFade = { frames: 0, song: null }
 
     const _Scene_Map_update = Scene_Map.prototype.update
     Scene_Map.prototype.update = function () {
@@ -113,53 +140,68 @@
     }
 
     /**
-     * Crossfades to the other song when the time of day changes while on a
-     * day/night map. Only reacts to a *change*, so event music (cutscenes
-     * etc.) played on the map isn't overridden every frame.
+     * Crossfades to the other song of the active pair when the time of day
+     * changes while that pair's wrong song is playing. Any other music
+     * (cutscenes, other maps) is left alone.
      */
     Scene_Map.prototype.updateDayNightBgm = function () {
-        const mapId = $gameMap.mapId()
-        const entry = DAY_NIGHT_MAPS.get(mapId)
-        if (!entry) return
-
-        const song = dayNightSong(entry)
-        // No autoplay ran for this map (e.g. a save was loaded here): adopt the
-        // current time of day as the baseline and keep what's already playing.
-        if (dayNight.mapId !== mapId) {
-            dayNight = { mapId, song, fadeFrames: 0 }
-            return
-        }
-
-        if (dayNight.fadeFrames > 0) {
-            if (--dayNight.fadeFrames === 0) {
-                AudioManager.playBgm(dayNight.song)
+        if (dayNightFade.frames > 0) {
+            if (--dayNightFade.frames > 0) return
+            // Something else started during the fade-out (transfer, event): let it play.
+            if (!AudioManager._currentBgm) {
+                AudioManager.playBgm(dayNightFade.song)
                 AudioManager.fadeInBgm(1)
             }
+            dayNightFade.song = null
             return
         }
 
-        if (song === dayNight.song) return
-        dayNight.song = song
-        if (AudioManager._currentBgm) {
-            AudioManager.fadeOutBgm(1)
-            dayNight.fadeFrames = DAY_NIGHT_FADE_FRAMES
-        } else {
-            AudioManager.playBgm(song)
-            AudioManager.fadeInBgm(1)
-        }
+        const pair = $gameSystem._dayNightBgm
+        const current = AudioManager._currentBgm
+        if (!pair || !current) return
+        const wanted = dayNightSong(pair)
+        const other = wanted === pair.day ? pair.night : pair.day
+        if (current.name !== other.name || current.name === wanted.name) return
+
+        AudioManager.fadeOutBgm(1)
+        dayNightFade = { frames: DAY_NIGHT_FADE_FRAMES, song: wanted }
     }
+
+    //---------------------------------------------------------------//
+    // Plugin command: Play BGM (Day/Night)
+    //---------------------------------------------------------------//
+    PluginManager.registerCommand(pluginName, "playDayNightBgm", (args) => {
+        const audio = {
+            volume: Number(args.volume),
+            pitch: Number(args.pitch),
+            pan: Number(args.pan),
+        }
+        const pair = {
+            day: { name: args.day, ...audio },
+            night: { name: args.night || args.day, ...audio },
+        }
+        if (args.follow === "true") setActiveDayNightPair(pair)
+        AudioManager.playBgm(dayNightSong(pair))
+    })
 
     //============================================================================//
     //                            BGM REPLACEMENTS                                //
     //============================================================================//
 
+    /** Rules file in data/, loaded alongside the database at boot. */
+    const BGM_REPLACEMENTS_FILE = "WauLau_BgmReplacements.json"
+
     /**
      * Songs swapped out whenever they're played, from anywhere (Play BGM,
-     * map autoplay, battle BGM, script calls).
+     * map autoplay, battle BGM, script calls). Loaded from the "replacements"
+     * array in data/WauLau_BgmReplacements.json.
      *
      * - from:        Original song name to replace.
      * - to:          Audio fields to use instead. Omitted fields (volume,
      *                pitch, pan) keep the original's values.
+     * - night:       Optional. Audio fields to use at night instead; makes the
+     *                rule a day/night pair (day = `to`, or the original song
+     *                if there's no `to`) that crossfades on time changes.
      * - map, event, commonEvent, troop: optional conditions. An omitted
      *   condition matches anything; a number or an array of numbers must
      *   match the current context.
@@ -171,24 +213,92 @@
      *     troop       - Troop ID, during battle (incl. the battle intro).
      *
      * The first matching rule wins, so list specific rules before general ones.
-     * @type {Array<{from: string, to: object, map?: number|number[], event?: number|number[], commonEvent?: number|number[], troop?: number|number[]}>}
+     * @type {Array<{from: string, to?: object, night?: object, map?: number|number[], event?: number|number[], commonEvent?: number|number[], troop?: number|number[]}>}
      */
-    const BGM_REPLACEMENTS = [
-        {
-            from: "WelcomeToEugenes",
-            to: { name: "WelcomeToEugenes_VaporWave" },
-            map: 132,
-            event: 69,
-        },
-        // Examples:
-        // { from: "OriginalSong", to: { name: "NewSong" } },                         // everywhere
-        // { from: "OriginalSong", to: { name: "NewSong", volume: 80 }, map: 56 },    // one map
-        // { from: "OriginalSong", to: { name: "NewSong" }, map: 56, event: 3 },      // one map event
-        // { from: "OriginalSong", to: { name: "NewSong" }, commonEvent: [46, 47] },  // common events
-        // { from: "BattleSong", to: { name: "NewBattleSong" }, troop: 12 },          // one troop
-    ]
+    let BGM_REPLACEMENTS = []
+    let bgmReplacementsLoaded = false
 
     const CONTEXT_KEYS = ["map", "event", "commonEvent", "troop"]
+
+    //---------------------------------------------------------------//
+    // Loading data/WauLau_BgmReplacements.json
+    //---------------------------------------------------------------//
+
+    // OWN LOADER -----
+    // Not added to DataManager._databaseFiles: those get a "Test_" prefix in
+    // battle/event tests, and a JSON syntax error there throws inside the XHR
+    // callback, leaving the boot screen waiting forever. Here a missing or
+    // broken file logs an error and the game runs without replacements.
+    const _DataManager_loadDatabase = DataManager.loadDatabase
+    DataManager.loadDatabase = function () {
+        _DataManager_loadDatabase.call(this)
+        loadBgmReplacements()
+    }
+
+    const _DataManager_isDatabaseLoaded = DataManager.isDatabaseLoaded
+    /** Boot also waits for the replacements file. */
+    DataManager.isDatabaseLoaded = function () {
+        return _DataManager_isDatabaseLoaded.call(this) && bgmReplacementsLoaded
+    }
+
+    /** Requests the rules file; sets BGM_REPLACEMENTS and bgmReplacementsLoaded when done. */
+    function loadBgmReplacements() {
+        const url = "data/" + BGM_REPLACEMENTS_FILE
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", url)
+        xhr.overrideMimeType("application/json")
+        xhr.onload = () => {
+            if (xhr.status < 400) {
+                BGM_REPLACEMENTS = parseBgmReplacements(xhr.responseText)
+            } else {
+                console.error(
+                    `${pluginName}: couldn't load ${url} (${xhr.status})`
+                )
+            }
+            bgmReplacementsLoaded = true
+        }
+        xhr.onerror = () => {
+            console.error(`${pluginName}: couldn't load ${url}`)
+            bgmReplacementsLoaded = true
+        }
+        xhr.send()
+    }
+
+    /**
+     * Parses the rules file, dropping (and logging) rules that can't work.
+     * @param {string} text - Raw file contents.
+     * @returns {Array<object>} The valid rules, in file order.
+     */
+    function parseBgmReplacements(text) {
+        let rules
+        try {
+            rules = JSON.parse(text).replacements
+        } catch (e) {
+            console.error(
+                `${pluginName}: ${BGM_REPLACEMENTS_FILE} isn't valid JSON - ${e.message}`
+            )
+            return []
+        }
+        if (!Array.isArray(rules)) {
+            console.error(
+                `${pluginName}: ${BGM_REPLACEMENTS_FILE} needs a "replacements" array`
+            )
+            return []
+        }
+        return rules.filter((rule, i) => {
+            const valid =
+                !!rule &&
+                typeof rule.from === "string" &&
+                [rule.to, rule.night].some((audio) => audio && audio.name)
+            if (!valid) {
+                console.warn(
+                    `${pluginName}: skipping replacements[${i}], needs "from" and a "to" or "night" with a "name"`,
+                    rule
+                )
+            }
+            return valid
+        })
+    }
 
     // CONTEXT TRACKING -----
     // AudioManager.playBgm doesn't know who called it, so the interpreter
@@ -284,6 +394,20 @@
     }
 
     /**
+     * Applies a matched rule. Day/night rules also become the active pair.
+     * @param {object} rule - A BGM_REPLACEMENTS entry.
+     * @param {object} bgm - Audio object about to be played.
+     * @returns {object} The audio object to play instead.
+     */
+    function applyRule(rule, bgm) {
+        const day = rule.to ? { ...bgm, ...rule.to } : bgm
+        if (!rule.night) return day
+        const pair = { day, night: { ...bgm, ...rule.night } }
+        setActiveDayNightPair(pair)
+        return dayNightSong(pair)
+    }
+
+    /**
      * @param {object} bgm - Audio object about to be played.
      * @returns {object} The replacement audio object, or bgm unchanged.
      */
@@ -293,7 +417,7 @@
         if (candidates.length === 0) return bgm
         const context = currentBgmContext()
         const rule = candidates.find((r) => ruleMatchesContext(r, context))
-        return rule ? { ...bgm, ...rule.to } : bgm
+        return rule ? applyRule(rule, bgm) : bgm
     }
 
     // PLAY BGM INJECTION -----
@@ -309,7 +433,7 @@
     // checkIfBGM (bunchastuff.js) -----
     // Event scripts compare the current BGM against *original* song names,
     // e.g. checkIfBGM("Eviction_VaporWave") in CommonEvents.json. A playing
-    // replacement counts as its original.
+    // replacement (day or night) counts as its original.
     const _checkIfBGM = window.checkIfBGM
     if (typeof _checkIfBGM === "function") {
         window.checkIfBGM = function (bgmTrack) {
@@ -318,7 +442,11 @@
             return (
                 !!current &&
                 BGM_REPLACEMENTS.some(
-                    (r) => r.from === bgmTrack && r.to.name === current.name
+                    (r) =>
+                        r.from === bgmTrack &&
+                        [r.to, r.night].some(
+                            (audio) => audio && audio.name === current.name
+                        )
                 )
             )
         }

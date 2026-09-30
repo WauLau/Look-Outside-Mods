@@ -12,6 +12,15 @@ LookOutsidePluginMods/movies
 LookOutsidePluginMods/save
 LookOutsidePluginMods/swiftshader
 
+#Personal work resources
+scripts/*
+scripts
+claude
+
+#Temp
+__pycache__
+
+
 # Unused files
 LookOutsidePluginMods/*
 

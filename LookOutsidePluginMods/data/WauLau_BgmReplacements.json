@@ -1,0 +1,54 @@
+{
+    "_readme": [
+        "BGM replacements for WauLau_ExtendedSoundtrack.",
+        "The first matching rule wins: list specific rules before general ones.",
+        "from: original song name.",
+        "to: audio fields to use instead (omitted volume/pitch/pan keep the original's).",
+        "night: audio fields to use at night (var 122 >= 2);",
+        "   makes the rule a day/night pair that crossfades on time changes.",
+        "Optional conditions (number or array of numbers):",
+        "map, event (pair with map), commonEvent, troop.",
+        "Examples:",
+        "{ ",
+        "   \"from\": \"OriginalSong\"",
+        "   \"to\": { \"name\": \"NewSong\", \"volume\": 80 }, \"map\": 56, \"event\": 3 ",
+        "}",
+        "{",
+        "   \"from\": \"BattleSong\",",
+        "   \"to\": { \"name\": \"NewBattleSong\" },",
+        "   \"troop\": [12, 13]",
+        "}",
+        "{",
+        "   \"from\": \"OriginalSong\",",
+        "   \"night\": { \"name\": \"OriginalSong_Night\" },",
+        "   \"commonEvent\": 46",
+        "}"
+    ],
+    "replacements": [
+        {
+            "from": "WelcomeToEugenes",
+            "to": { "name": "WelcomeToEugenes_VaporWave" },
+            "map": 132,
+            "event": 69
+        },
+        {
+            "from": "MuttsFishAndChips",
+            "night": { "name": "MuttsFishAndChips_VaporWave" }
+        },
+        { "from": "Terminus", "night": { "name": "Terminus_VaporWave" } },
+        {
+            "from": "SafePlace",
+            "night": { "name": "SafePlace_VaporWave" },
+            "commonEvent": 7
+        },
+        {
+            "from": "Shimmering",
+            "to": { "name": "Shimmering_VaporWave" }
+        },
+        {
+            "from": "SafePlace",
+            "night": { "name": "SafePlace_VaporWave" },
+            "commonEvent": 7
+        }
+    ]
+}
