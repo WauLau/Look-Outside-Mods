@@ -2,12 +2,18 @@
     "_readme": [
         "BGM replacements for WauLau_ExtendedSoundtrack.",
         "The first matching rule wins: list specific rules before general ones.",
-        "from: original song name.",
+        "from: original song name, or \"_battleBgm\" for whatever battle BGM starts a battle.",
         "to: audio fields to use instead (omitted volume/pitch/pan keep the original's).",
-        "night: audio fields to use at night (var 122 >= 2);",
-        "   makes the rule a day/night pair that crossfades on time changes.",
+        "variants: [{ \"when\": ..., \"name\": ... }] songs played instead while \"when\" holds;",
+        "   the first that holds plays, and it crossfades on the map when conditions change.",
+        "   when: { \"switch\": 12 } ON | { \"switch\": 12, \"is\": false } OFF |",
+        "   { \"variable\": 5, \">=\": 2 } (also is, not, >, <, <=) | [cond, cond] all must hold.",
+        "night: shorthand for a variant at night (var 122 >= 2), checked after variants.",
         "Optional conditions (number or array of numbers):",
-        "map, event (pair with map), commonEvent, troop.",
+        "map, event (pair with map), commonEvent, troop,",
+        "page (1-based as in the editor; pair with map + event, or with troop),",
+        "channel (0 = main BGM, 1+ = MUSH channel incl. spatial BGM; omitted = both).",
+        "   MUSH channels pick their variant once at start; spatial \"to.volume\" = max volume.",
         "Examples:",
         "{ ",
         "   \"from\": \"OriginalSong\"",
@@ -22,9 +28,44 @@
         "   \"from\": \"OriginalSong\",",
         "   \"night\": { \"name\": \"OriginalSong_Night\" },",
         "   \"commonEvent\": 46",
+        "}",
+        "{",
+        "   \"from\": \"OriginalSong\",",
+        "   \"variants\": [",
+        "      { \"when\": { \"switch\": 150 }, \"name\": \"OriginalSong_Horror\" },",
+        "      { \"when\": { \"variable\": 30, \">=\": 3 }, \"name\": \"OriginalSong_Late\", \"pitch\": 90 }",
+        "   ],",
+        "   \"night\": { \"name\": \"OriginalSong_Night\" }",
+        "}",
+        "",
+        "pageBgm: songs played when a troop or map event page starts or ends,",
+        "   even if the page plays no BGM itself. Replacement rules still apply to them.",
+        "play: audio fields of the song. at: \"start\" (default) or \"end\".",
+        "troop, or map + event: required. page: optional (omitted = any page).",
+        "when: optional condition (same format as variants).",
+        "{ \"play\":",
+        "   { \"name\": \"Fight\" }",
+        "   \"troop\":21",
+        "   \"page\": 1",
+        "   \"at\": \"end\"",
         "}"
     ],
     "replacements": [
+        [
+            "//=========================================================================//",
+            "//                             SPLASH & TITLE                              //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "TheWindow",
+            "to": { "name": "TheWindow_VaporWave", "volume": 90 },
+            "map": 307
+        },
+        [
+            "//=========================================================================//",
+            "//                             GLOBAL - SHOPS                              //",
+            "//=========================================================================//"
+        ],
         {
             "from": "WelcomeToEugenes",
             "to": { "name": "WelcomeToEugenes_VaporWave" },
@@ -35,20 +76,493 @@
             "from": "MuttsFishAndChips",
             "night": { "name": "MuttsFishAndChips_VaporWave" }
         },
-        { "from": "Terminus", "night": { "name": "Terminus_VaporWave" } },
-        {
-            "from": "SafePlace",
-            "night": { "name": "SafePlace_VaporWave" },
-            "commonEvent": 7
-        },
+        [
+            "//=========================================================================//",
+            "//                              GLOBAL - MISC                              //",
+            "//=========================================================================//"
+        ],
         {
             "from": "Shimmering",
-            "to": { "name": "Shimmering_VaporWave" }
+            "to": { "name": "Shimmering_HorrorOST" },
+            "troop": [121, 122, 123, 124]
         },
+        [
+            "//=========================================================================//",
+            "//                                DAY/NIGHT                                //",
+            "//=========================================================================//"
+        ],
+        { "from": "Terminus", "night": { "name": "Terminus_VaporWave" } },
+        [
+            "// --------------------------------HOME--------------------------------- //"
+        ],
         {
             "from": "SafePlace",
             "night": { "name": "SafePlace_VaporWave" },
             "commonEvent": 7
-        }
+        },
+        {
+            "from": "NoiseZoneOutside",
+            "to": "NoiseZoneOutside",
+            "variants": [
+                {
+                    "when": { "variable": 16, "<": 4, ">=": 0 },
+                    "name": "NoiseZoneOutside"
+                },
+                {
+                    "when": { "variable": 16, "<": 8, ">=": 4 },
+                    "name": "NoiseZoneOutside_HorrorOST",
+                    "volume": 100
+                },
+                {
+                    "when": { "variable": 16, "<": 12, ">=": 8 },
+                    "name": "NoiseZoneOutside"
+                },
+                {
+                    "when": { "variable": 16, "<": 16, ">=": 12 },
+                    "name": "NoiseZoneOutside_HorrorOST",
+                    "volume": 100
+                },
+                {
+                    "when": { "variable": 16, "<": 20, ">=": 16 },
+                    "name": "NoiseZoneOutside"
+                },
+                {
+                    "when": { "variable": 16, "<": 24, ">=": 20 },
+                    "name": "NoiseZoneOutside_HorrorOST",
+                    "volume": 100
+                }
+            ],
+            "map": [3, 4],
+            "event": [11, 4]
+        },
+        {
+            "from": "NoiseZoneInside",
+            "to": "NoiseZoneInside",
+            "variants": [
+                {
+                    "when": { "variable": 16, "<": 4, ">=": 0 },
+                    "name": "NoiseZoneInside"
+                },
+                {
+                    "when": { "variable": 16, "<": 8, ">=": 4 },
+                    "name": "NoiseZoneInside_HorrorOST",
+                    "volume": 100
+                },
+                {
+                    "when": { "variable": 16, "<": 12, ">=": 8 },
+                    "name": "NoiseZoneInside"
+                },
+                {
+                    "when": { "variable": 16, "<": 16, ">=": 12 },
+                    "name": "NoiseZoneInside_HorrorOST",
+                    "volume": 100
+                },
+                {
+                    "when": { "variable": 16, "<": 20, ">=": 16 },
+                    "name": "NoiseZoneInside"
+                },
+                {
+                    "when": { "variable": 16, "<": 24, ">=": 20 },
+                    "name": "NoiseZoneInside_HorrorOST",
+                    "volume": 100
+                }
+            ],
+            "map": 2,
+            "event": 13
+        },
+        [
+            "//=========================================================================//",
+            "//                                 FLOOR 3                                 //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "Fight",
+            "to": { "name": "Fight_VaporWave" },
+            "troop": 20
+        },
+        {
+            "from": "Eyes",
+            "to": { "name": "Eyes_VaporWave" },
+            "troop": 20,
+            "page": 5
+        },
+        {
+            "from": "Fight",
+            "to": { "name": "Tension_VaporWave" },
+            "troop": 21
+        },
+        {
+            "from": "BeautifulButWrong",
+            "to": { "name": "BeautifulButWrong_VaporWave" },
+            "troop": 141
+        },
+        {
+            "from": "RogueTaxidermy",
+            "to": { "name": "RogueTaxidermy_VaporWave" },
+            "troop": 441
+        },
+        {
+            "from": "Formaldehyde",
+            "to": { "name": "Formaldehyde_VaporWave" },
+            "troop": 441
+        },
+        {
+            "from": "SpookyEncounter",
+            "to": { "name": "Fight" },
+            "map": 34,
+            "event": 13
+        },
+        {
+            "from": "SpookyBattleBaby",
+            "to": { "name": "SpookyBattleBaby_VaporWave", "pitch": 90 },
+            "map": 436,
+            "event": 5
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "RunAway" },
+            "troop": 641
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Fight" },
+            "troop": [642, 643, 644, 645, 646, 647]
+        },
+        {
+            "from": "Monomania",
+            "to": { "name": "Monomania_VaporWave" },
+            "troop": 682
+        },
+        [
+            "//=========================================================================//",
+            "//                                 FLOOR 2                                 //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "_battleBgm",
+            "to": { "name": "LostForWords_VaporWave" },
+            "troop": 799
+        },
+        {
+            "from": "Lethargy",
+            "to": { "name": "Lethargy_VaporWave" }
+        },
+        [
+            "//=========================================================================//",
+            "//                                 FLOOR 1                                 //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "Dissociation",
+            "to": { "name": "Dissociation_VaporWave" },
+            "troop": 327
+        },
+        {
+            "from": "Planetarium",
+            "variants": [
+                { "when": { "switch": 699 }, "name": "Planetarium_VaporWave" },
+                {
+                    "when": { "switch": 699, "is": false },
+                    "name": "Planetarium"
+                }
+            ]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Despair_HorrorOST" },
+            "troop": 664
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Verminator" },
+            "troop": 110
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "WhiskersTwitch_HorrorOST" },
+            "troop": 516
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Verminator_HorrorOST" },
+            "troop": [517, 518, 519]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "WormDance" },
+            "troop": [
+                552, 553, 554, 556, 557, 558, 559, 560, 561, 562, 563, 564, 565,
+                566, 567, 568, 569, 570, 571, 572, 573, 579, 580, 581, 582, 583
+            ]
+        },
+        [
+            "//============================================================================//",
+            "//                                GROUND FLOOR                                //",
+            "//============================================================================//"
+        ],
+        {
+            "from": "NoiseZoneHeadphones",
+            "to": { "name": "NoiseZoneHeadphones_VaporWave" },
+            "commonEvent": 227
+        },
+        {
+            "from": "KOTD",
+            "to": { "name": "KOTD_VaporWave" },
+            "troop": 780
+        },
+        {
+            "from": "Dragonslayer",
+            "to": { "name": "Dragonslayer_VaporWave" },
+            "commonEvent": 292
+        },
+        [
+            "// ------------------------------LANDLORD------------------------------- //"
+        ],
+        {
+            "from": "RentIsLate",
+            "to": { "name": "RentIsLate_VaporWave" }
+        },
+        {
+            "from": "LastWarning",
+            "to": { "name": "LastWarning_VaporWave" }
+        },
+        {
+            "from": "Eviction",
+            "to": { "name": "Eviction_VaporWave" }
+        },
+        {
+            "from": "RentInterlude",
+            "to": { "name": "RentInterlude_VaporWave", "pos": 56 }
+        },
+        [
+            "//=========================================================================//",
+            "//                                BASEMENT                                 //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "RunAway",
+            "to": { "name": "RunAway_HorrorOST" },
+            "troop": 206
+        },
+        {
+            "from": "Simmer",
+            "to": { "name": "Simmer_VaporWave" },
+            "troop": 232
+        },
+        {
+            "from": "Inferno",
+            "to": { "name": "Inferno_VaporWave" },
+            "troop": 232
+        },
+        {
+            "from": "MyceliumDominion",
+            "to": { "name": "MyceliumDominion_VaporWave" },
+            "variants": [
+                {
+                    "when": { "switch": 199 },
+                    "name": "MyceliumDominion"
+                },
+                {
+                    "when": { "switch": 199, "is": false },
+                    "name": "MyceliumDominion_VaporWave"
+                }
+            ],
+            "map": [83, 188, 187, 127, 437, 438]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Dawning" },
+            "variants": [
+                {
+                    "when": { "switch": 198 },
+                    "name": "Dawning"
+                },
+                {
+                    "when": { "switch": 198, "is": false },
+                    "name": "MyceliumDominion_VaporWave"
+                }
+            ],
+            "troop": 215
+        },
+        {
+            "from": "WormDance",
+            "to": { "name": "WormDance_HorrorOST" },
+            "troop": 606
+        },
+        {
+            "from": "RunAway",
+            "to": { "name": "RunAway_HorrorOST" },
+            "troop": 188
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Fight_HorrorOST" },
+            "troop": [183, 184]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Smile_VaporWave" },
+            "troop": [183, 184]
+        },
+        {
+            "from": "RunAway",
+            "to": { "name": "RunAway_VaporWave" },
+            "troop": [228, 224]
+        },
+        [
+            "//=========================================================================//",
+            "//                                  ROOF                                   //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "OutsideTheWindow",
+            "to": { "name": "OutsideTheWindow_VaporWave" },
+            "troop": 200
+        },
+        {
+            "from": "Ritual",
+            "to": { "name": "Ritual_VaporWave" },
+            "troop": 190
+        },
+        {
+            "from": "TheGaze",
+            "to": { "name": "TheGaze_VaporWave" },
+            "troop": 190
+        },
+        [
+            "//=========================================================================//",
+            "//                             DOOR ENCOUNTERS                             //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "Fight",
+            "to": { "name": "Tension_VaporWave" },
+            "troop": [
+                240, 250, 252, 254, 256, 257, 258, 259, 260, 263, 264, 265
+            ]
+        },
+        {
+            "from": "RunAway",
+            "to": { "name": "Fight_HorrorOST" },
+            "troop": [240, 250, 252]
+        },
+        [
+            "//=========================================================================//",
+            "//                                  OTHER                                  //",
+            "//=========================================================================//"
+        ],
+        {
+            "from": "Doom",
+            "to": { "name": "Doom_VaporWave", "pitch": 90 },
+            "troop": 840
+        },
+        {
+            "from": "MassacrePrincessCatholicon",
+            "to": { "name": "MassacrePrincessCatholicon_VaporWave" },
+            "commonEvent": 250
+        },
+        [
+            "// --------------------------DAN INTERACTIONS--------------------------- //"
+        ],
+        {
+            "from": "SpaceTruckers",
+            "to": { "name": "SpaceTruckers_VaporWave" },
+            "commonEvent": 237
+        },
+        [
+            "//=========================================================================//",
+            "//                                BUG FIXES                                //",
+            "//=========================================================================//"
+        ],
+        [
+            "// ------------------------------FROM WIKI------------------------------ //"
+        ],
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Eyes" },
+            "troop": [
+                81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95
+            ]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Fight_VaporWave" },
+            "troop": [217, 218, 219, 220, 221, 222, 223, 225, 226]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Fight" },
+            "troop": [501, 502, 503, 504, 505, 506, 507, 508]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "RunAway" },
+            "troop": [509, 510, 511]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "IronCrown_HorrorOST" },
+            "troop": [100, 103, 104, 105, 106, 107, 109]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "MyrmidonXII_VaporWave" },
+            "troop": [426, 427, 428, 429, 430, 431, 432, 433, 434]
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "Tension" },
+            "troop": 52
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "HeartBeat" },
+            "troop": 53
+        },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "BrokenPromises" },
+            "troop": 673
+        },
+        {}
+    ],
+    "pageBgm": [
+        {
+            "play": { "name": "DissociationIntro_VaporWave" },
+            "troop": [332, 331],
+            "page": 1,
+            "at": "end"
+        },
+        {
+            "play": { "name": "HeartBeat_VaporWave" },
+            "troop": [328, 329, 330, 331, 333, 334, 336, 338, 339, 340, 342],
+            "page": 1,
+            "at": "end"
+        },
+        {
+            "play": { "name": "WormDance" },
+            "troop": 560,
+            "page": 1,
+            "at": "end"
+        },
+        {
+            "play": { "name": "" },
+            "troop": 615,
+            "page": 1,
+            "at": "start"
+        },
+        {
+            "play": { "name": "BeautifulButWrong_HorrorOST" },
+            "troop": 615,
+            "page": 2,
+            "at": "end"
+        },
+        {
+            "play": { "name": "KillToShoot_VaporWave" },
+            "troop": 322,
+            "page": 1,
+            "at": "end"
+        },
+        {}
     ]
 }
