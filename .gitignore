@@ -13,9 +13,10 @@ LookOutsidePluginMods/save
 LookOutsidePluginMods/swiftshader
 
 #Personal work resources
+*.code-workspace
 scripts/*
 scripts
-claude
+.claude
 
 #Temp
 __pycache__

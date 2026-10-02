@@ -85,7 +85,8 @@
     Scene_Title.prototype.playTitleMusic = function () {
         if (
             AudioManager._bgmBuffer &&
-            AudioManager._bgmBuffer.name === "TheWindow_VaporWave"
+            AudioManager._bgmBuffer.name === "TheWindow_VaporWave" &&
+            AudioManager._bgmBuffer._isPlaying
         ) {
             return
         }
@@ -151,7 +152,8 @@
             const value = $gameVariables.value(cond.variable)
             return Object.keys(VARIABLE_TESTS).every(
                 (op) =>
-                    cond[op] === undefined || VARIABLE_TESTS[op](value, cond[op])
+                    cond[op] === undefined ||
+                    VARIABLE_TESTS[op](value, cond[op])
             )
         })
     }
@@ -452,7 +454,9 @@
             return entry.every((line) => typeof line === "string")
         }
         return (
-            !!entry && typeof entry === "object" && Object.keys(entry).length === 0
+            !!entry &&
+            typeof entry === "object" &&
+            Object.keys(entry).length === 0
         )
     }
 
@@ -660,7 +664,12 @@
         const previous = runningInterpreter
         runningInterpreter = interpreter
         try {
-            AudioManager.playBgm({ volume: 90, pitch: 100, pan: 0, ...entry.play })
+            AudioManager.playBgm({
+                volume: 90,
+                pitch: 100,
+                pan: 0,
+                ...entry.play,
+            })
         } finally {
             runningInterpreter = previous
         }
