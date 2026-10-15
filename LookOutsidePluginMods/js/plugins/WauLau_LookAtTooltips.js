@@ -1,106 +1,95 @@
 /*:
  * @target MZ
  * @author WauLau (based on GBCCoffee_StateTooltips by coffeenahc, https://coffeenahc.itch.io/)
- * @plugindesc (v2.2) Popup tooltip when hovering a state icon, or a weapon/armor row in the item, equip, or shop screens, with JSON-driven text, stat expressions, bold/italic and color codes. Also supports gamepad browsing for both.
+ * @plugindesc (v3.0) Enables fully integrated tooltips for the game "Look Outside".
  *
  * @help
  * ======================================================================================
  *
- * Merge of GBCCoffee_StateTooltips (by coffeenahc) and this mod's own stat-expression /
- * formatting add-on into a single plugin, now sourcing tooltip text from
- * data/WauLau_Tooltips.json instead of state note tags - so tooltip content lives in a file
- * that only this feature touches, and doesn't conflict with other mods that also edit
- * States.json for unrelated reasons.
+ * Fully integrated tooltips for states, buffs, items, weapons, armor and
+ * skills. Based on GBCCoffee_StateTooltips by coffeenahc
+ * (https://coffeenahc.itch.io/) - attribution required per the original
+ * plugin's free-tier terms of use.
  *
- * Original plugin credit: coffeenahc (https://coffeenahc.itch.io/) - attribution
- * required per the original plugin's free-tier terms of use.
+ * All hand-written tooltip text lives in data/WauLau_TooltipData.json, a file
+ * only this plugin reads, so it never conflicts with other mods that edit the
+ * database files.
  *
  * ======================================================================================
  * HOW TO USE
  * ======================================================================================
  *
- * 1.) For states:
- * Edit data/WauLau_Tooltips.json directly. Structure:
- *   { "states": { "<stateId>": "tooltip text for that state" } }
- * Since this is now a plain JSON string value (not a note tag), you only need normal
- * JSON string escaping: a literal backslash is "\\", a line break can just be written
- * as "\n" in the JSON and it becomes a real line break, no more pressing Enter inside
- * a single-line note field. A state with no entry falls back to the default
- * icon + name display.
+ * 1.) States:
+ * Hovering a battler's state icons (battle, party menu, status screen) shows
+ * every state on that battler. Each state's text comes from the "states"
+ * section of WauLau_TooltipData.json:
+ *   "states": {
+ *       "<stateId>": {
+ *           "name": "Poison",              (editor label only)
+ *           "text": ["line 1", "line 2"]   (one string per line)
+ *       }
+ *   }
+ * A state with no entry shows just its icon and name. An entry with a "hide"
+ * key is left out of the tooltip entirely.
  *
- * 2.) For buffs/debuffs:
- * Edit the text from this plugin's parameters, same as before.
+ * 2.) Weapons, armor, items and skills:
+ * Hovering a row in the item, equip, skill, shop or battle action lists shows
+ * a tooltip built automatically from the database: stats and traits, damage
+ * and targets, recovery, inflicted/cured states, costs (HP, ammo, items),
+ * break chance, granted skills, and more. Extra hand-written lines can be
+ * added per entry in the "weapons", "armors", "items" and "skills" sections:
+ *   "armors": {
+ *       "<armorId>": {
+ *           "_name": "Eyeball Hat",        (keys starting with "_" are ignored)
+ *           "Label": ["line 1", "line 2"]  (any other key is shown, in order)
+ *       }
+ *   }
+ * In battle, the Attack command has an icon on its right edge: hovering it
+ * shows the actor's current attack skill.
  *
- * 3.) For weapons/armor/items:
- * Hovering a weapon, armor, or consumable item row in the Item screen, the
- * Equip screen (both the equipped-slot list and the picker list), or the
- * shop's buy/sell lists shows a tooltip built automatically from that
- * item's own database fields, plus optional flavor text:
- *   - Weapons: non-zero params (this project's renamed stat terms, e.g.
- *     "Ballistics" instead of "M.Atk"), damage type + 1H/2H (from the
- *     Attack Element / "seals Ranged" traits), and any Attack State.
- *   - Armor: equip slot, non-zero params, State Rate/State Resist/Element
- *     Rate deviations from normal, and any non-zero EX-param (Hit,
- *     Evasion, Critical Rate, regen, etc).
- *   - Regular items: Recover HP/STM (rate + flat combined) and any
- *     Add State/Remove State effect, grouped by chance. States with no
- *     icon (this project's convention for a purely internal/bookkeeping
- *     state, e.g. a hidden "already used" flag) are skipped.
- * That flavor text comes from data/WauLau_ItemTooltips.json:
- *   { "weapons": { "<weaponId>": { "text": "..." } },
- *     "armors": { "<armorId>": { "text": "..." } },
- *     "items": { "<itemId>": { "text": "..." } } }
- * Same JSON string rules as the states file above. If an item has no entry
- * there, its database "description" field is used instead, so items that
- * already have one written don't need to be duplicated into this file.
+ * 3.) Gamepad:
+ * Any gamepad button bound to "menu" or "menu/cancel" (gamepad Y by default)
+ * shows and hides tooltips. Keyboard players use mouse hover - Esc/X stay
+ * plain cancel keys and never toggle tooltips.
+ *   - If an item/equip/skill/shop list has the cursor, it shows the tooltip
+ *     for that row only. Moving to another row closes it.
+ *   - Otherwise, it cycles through every state-bearing battler on screen,
+ *     stepped with the Prev/Next buttons (plugin parameters below).
+ * It turns itself off as soon as whatever it was showing leaves the screen.
  *
- * 4.) Gamepad/controller support:
- * The dash button (gamepad X / keyboard Shift) shows and hides tooltips in
- * battle and menu screens, where dashing isn't possible. What it shows
- * depends on what's focused when you press it:
- *   - If an item/equip/shop list currently has the cursor, it shows the
- *     tooltip for that row only. Moving to another row closes it, and it
- *     stays closed until the button is pressed again.
- *   - Otherwise, it cycles through every state/buff-bearing battler on
- *     screen (same as hovering their icons with a mouse), stepped with the
- *     Prev/Next buttons below.
- * Pressing the button again turns it off. It also turns itself off
- * automatically the moment whatever it was showing stops being on screen -
- * e.g. opening the skill/item list in battle, or moving to a different
- * screen that closes the window a tooltip was anchored to - so it can't get
- * stuck showing on top of whatever opens next.
+ * 4.) Dialogue shops:
+ * Shops that sell through map events instead of the Shop scene (Eugene's,
+ * common event 46, and Mutt's, common event 291) show the item's stat block in
+ * a window in the bottom-left while the Buy dialogue runs. The message window
+ * moves to the right of it and re-wraps its text to fit.
  *
- * 5.) Dialogue shops:
- * Shops that sell through map events instead of the Shop scene show the item's
- * stat block in a fixed window in the bottom-left while the Buy dialogue runs:
- *   - Eugene's (common event 46, BuyItemTable): for as long as that common
- *     event runs. The item is read from variable 481, which each shop item
- *     event sets before calling 46.
- *   - Mutt's (common event 291, MuttSpecialPrice): from that call until the
- *     calling event's Buy choice ends. The item is the first one that event
- *     page grants with Change Items/Weapons/Armors.
- * Meanwhile the message window moves to the right of it: narrowed to the
- * remaining width, its text re-wrapped to fit, and grown upward by whole
- * lines if the wrapped text needs more than its usual 4 rows.
+ * ======================================================================================
+ * ESCAPE CODES
+ * ======================================================================================
  *
- * Escape codes recognized inside tooltip text:
- *   \C[x]           - change text color (0-31)
- *   \I[x]           - display icon
- *   \TR             - remaining turns for a state
- *   \TRT            - "X turns remaining" / "X turn remaining"
- *   \SR             - remaining steps for a state
- *   \SRT            - "X steps remaining" / "X step remaining"
- *   \BR             - remaining turns for a buff/debuff
- *   \B[1] / \B[0]   - subheader on / off: bold + a size bump (same size bump as \{ \}
- *                     below), plus switching to Bold Color / back to Text Color
- *   \IT[1] / \IT[0] - turn italic on / off
- *   \>              - right-align the rest of the line, e.g. "Bleed\>15%" draws
- *                     "Bleed" on the left and "15%" flush right (one per line)
- *   {expression}    - evaluate a math expression against the tooltip's battler and
- *                     print the result in Expression Color. Example:
- *                       {maxhp * 0.1}
+ * Usable inside any tooltip text (state text and the JSON extra lines):
+ *   \C[x]           - text color (0-31)
+ *   \I[x]           - icon, scaled to the current font size
+ *   \TR / \TRT      - a state's remaining turns / "X turns remaining"
+ *   \SR / \SRT      - a state's remaining steps / "X steps remaining"
+ *   \B[1] / \B[0]   - bold sub-label on / off
+ *   \BS[1] / \BS[0] - bold stat value on / off
+ *   \BSD[1]/\BSD[0] - bold damage value on / off
+ *   \IT[1] / \IT[0] - italic on / off
+ *   \LB[1] / \LB[0] - section label on / off (slightly larger)
+ *   \ST[1] / \ST[0] - subtitle on / off
+ *   \TI[1] / \TI[0] - title on / off
+ *   \DE[1] / \DE[0] - description text on / off (small italic)
+ *   \>              - right-align the rest of the line, e.g. "Bleed\>15%"
+ *   \JU             - start of a ", "-separated list, e.g.
+ *                     "\B[1]Immune To:\B[0] \JU Poison, Blind, Sleep". If the
+ *                     list doesn't fit on one line, the label moves to its own
+ *                     line and the list wraps item by item, spread evenly
+ *                     across the full width.
+ *   {expression}    - math on the tooltip's battler, printed as a stat value,
+ *                     e.g. {maxhp * 0.1}
  *
- * Recognized stat names inside { } expressions (case-insensitive):
+ * Stat names inside { } expressions (case-insensitive):
  *   hp, health                         - current HP
  *   maxhp, mhp                         - max HP
  *   mp, stamina, stm                   - current Stamina (MP)
@@ -119,131 +108,14 @@
  *   cri, critrate                      - Critical rate (0-100 points)
  *   cev, critevasion                   - Critical evasion rate (0-100 points)
  *
- * Any expression that isn't valid math, or references an unrecognized stat name,
- * prints as "?" in the tooltip and logs a warning to the console with the offending
- * text, so bad entries are easy to spot while testing.
- *
- * All of this (bold/italic, colors, {expressions}) only applies inside this plugin's
- * own Window_StateTooltip - it does not change any other window in the game.
- *
- * @param offsetX
- * @text Tooltip x offset
- * @desc Offset the tooltip by x units
- * @type Number
- * @default 0
- *
- * @param offsetY
- * @text Tooltip y offset
- * @desc Offset the tooltip by y units
- * @type Number
- * @default 0
- *
- * @param decimalPlaces
- * @text Decimal Places
- * @desc How many decimal places to round {expression} results to.
- * @type number
- * @min 0
- * @default 0
- *
- * @param expressionColor
- * @text Expression Color
- * @desc Text color index (0-31, same as \C[x]) used for {expression} results.
- * @type number
- * @min 0
- * @max 31
- * @default 8
- *
- * @param textColor
- * @text Text Color
- * @desc Text color index (0-31, same as \C[x]) used for any normal text.
- * @type number
- * @min 0
- * @max 31
- * @default 1
- *
- * @param boldColor
- * @text Bold Color
- * @desc Text color index (0-31, same as \C[x]) used for any bolded text.
- * @type number
- * @min 0
- * @max 31
- * @default 0
- *
- * @param labelColor
- * @text Label/Inline-Header Color
- * @desc Text color index (0-31, same as \C[x]) used for any labels.
- * @type number
- * @min 0
- * @max 31
- * @default 22
- *
- *
- * @param titleColor
- * @text Title Color
- * @desc Text color index (0-31, same as \C[x]) used for any Titles.
- * @type number
- * @min 0
- * @max 31
- * @default 10
- *
- * @param descColor
- * @text Description Color
- * @desc Text color index (0-31, same as \C[x]) used for any Descriptions.
- * @type number
- * @min 0
- * @max 31
- * @default 26
- *
- * @param subtitleColor
- * @text Subtitle Color
- * @desc Text color index (0-31, same as \C[x]) used for any Subtitles.
- * @type number
- * @min 0
- * @max 31
- * @default 18
- *
- * @param inlineColor
- * @text Inline Text Color
- * @desc Text color index (0-31, same as \C[x]) used for any Inline Text.
- * @type number
- * @min 0
- * @max 31
- * @default 0
- *
- * @param statColor
- * @text Stat Color
- * @desc Text color index (0-31, same as \C[x]) used for any Stats calculated from Expressions.
- * @type number
- * @min 0
- * @max 31
- * @default 1
+ * An expression that isn't valid math, or uses an unknown stat name, prints
+ * as "?" and logs a console warning with the offending text.
  *
  * @param enemyPercentOnly
  * @text Enemy Tooltips: Percent Only
  * @desc If ON, {expr} on an enemy only shows a % (from a "stat * 0.05" style multiplier) instead of the real computed number, to avoid leaking enemy stats.
  * @type boolean
  * @default true
- *
- * @param maxWidth
- * @text Max Tooltip Width
- * @desc Widest a single tooltip line is allowed to get (in pixels) before it wraps to a new line.
- * @type number
- * @min 50
- * @default 400
- *
- * @param shopMaxWidth
- * @text Max Shop Window Width
- * @desc Same as Max Tooltip Width, but for the dialogue shop info window (the message window gets the remaining screen width).
- * @type number
- * @min 50
- * @default 320
- *
- * @param shopFontOffset
- * @text Shop Window Font Offset
- * @desc Added to every tooltip font size (normal, bold, label, title, etc.) in the dialogue shop info window only. Negative values shrink it.
- * @type number
- * @min -10
- * @default 0
  *
  * @param gamepadPrevButton
  * @text Gamepad Previous Button Index
@@ -260,131 +132,11 @@
  * @min 0
  * @max 17
  * @default 7
- *
- * @param buffTooltipTexts
- * @text Buffs Tooltip Texts
- *
- * @param hpBuff
- * @text HP Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[32]\C[1]HP Buff: \C[3](Turns: \BR)
- *
- * @param mpBuff
- * @text MP Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[33]\C[1]MP Buff: \C[3](Turns: \BR)
- *
- * @param atkBuff
- * @text Atk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[34]\C[1]Atk Buff: \C[3](Turns: \BR)
- *
- * @param defBuff
- * @text Def Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[35]\C[1]Def Buff: \C[3](Turns: \BR)
- *
- * @param matkBuff
- * @text M.Atk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[36]\C[1]M.Atk Buff: \C[3](Turns: \BR)
- *
- * @param mdefBuff
- * @text M.Def Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[37]\C[1]M.Def Buff: \C[3](Turns: \BR)
- *
- * @param agiBuff
- * @text Agi Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[38]\C[1]Agi Buff: \C[3](Turns: \BR)
- *
- * @param lukBuff
- * @text Luk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent buffTooltipTexts
- * @default \}\I[39]\C[1]Luk Buff: \C[3](Turns: \BR)
- *
- * @param debuffTooltipTexts
- * @text Debuffs Tooltip Texts
- *
- * @param hpDebuff
- * @text HP Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[48]\C[1]HP Debuff: \C[3](Turns: \BR)
- *
- * @param mpDebuff
- * @text MP Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[49]\C[1]MP Debuff: \C[3](Turns: \BR)
- *
- * @param atkDebuff
- * @text Atk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[50]\C[1]Atk Debuff: \C[3](Turns: \BR)
- *
- * @param defDebuff
- * @text Def Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[51]\C[1]Def Debuff: \C[3](Turns: \BR)
- *
- * @param matkDebuff
- * @text M.Atk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[52]\C[1]M.Atk Debuff: \C[3](Turns: \BR)
- *
- * @param mdefDebuff
- * @text M.Def Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[53]\C[1]M.Def Debuff: \C[3](Turns: \BR)
- *
- * @param agiDebuff
- * @text Agi Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[54]\C[1]Agi Debuff: \C[3](Turns: \BR)
- *
- * @param lukDebuff
- * @text Luk Buff
- * @type text
- * @desc Text to display on the tooltip for this buff
- * @parent debuffTooltipTexts
- * @default \}\I[55]\C[1]Luk Debuff: \C[3](Turns: \BR)
  */
 
-var $dataTooltips = null
-DataManager.loadDataFile("$dataTooltips", "WauLau_StateTooltips.json")
+var $tooltipData = null
+DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
-var $dataItemTooltips = null
-DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 ;(() => {
     "use strict"
 
@@ -392,48 +144,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     //                              PLUGIN SETUP                                  //
     //============================================================================//
 
-    // IMPORTANT CALLOUT -----------------------------
-    // Must match this file's own registered plugin name in plugins.js
-    // (its filename).
-    //
-    // Setup plugin to work with RPGMaker MZ, including plugin definitions and
-    // Parameters
+    // PLUGIN NAME -----
+    // Must match this file's registered name in plugins.js (its filename).
     const pluginName = "WauLau_LookAtTooltips"
     const params = PluginManager.parameters(pluginName)
 
-    const WauLau = {}
-    WauLau.StateTooltips = {}
-    WauLau.StateTooltips.offsetX = parseInt(params.offsetX) || 0
-    WauLau.StateTooltips.offsetY = parseInt(params.offsetY) || 0
-    WauLau.StateTooltips.paramNames = [
-        "hp",
-        "mp",
-        "atk",
-        "def",
-        "matk",
-        "mdef",
-        "agi",
-        "luk",
-    ]
-    WauLau.StateTooltips.buffTexts = WauLau.StateTooltips.paramNames.map(
-        (p) => params[`${p}Buff`]
-    )
-    WauLau.StateTooltips.debuffTexts = WauLau.StateTooltips.paramNames.map(
-        (p) => params[`${p}Debuff`]
-    )
+    /** Offset of a cursor-following tooltip from the mouse position. */
+    const TOOLTIP_CURSOR_OFFSET_X = 0
+    const TOOLTIP_CURSOR_OFFSET_Y = 0
 
-    const decimalPlaces = Number(params.decimalPlaces || 0)
+    /** Decimal places for evaluated {expression} values. */
+    const decimalPlaces = 0
 
     const enemyPercentOnly = params.enemyPercentOnly !== "false"
-    const maxTooltipWidth = Number(params.maxWidth || 500)
-    const maxShopInfoWidth = Number(params.shopMaxWidth || 204)
+    const maxTooltipWidth = 500
+    const maxBattleItemTooltipWidth = 600
+    const maxShopInfoWidth = 204
 
     // ------------------------ESCAPE CHARACTER VARIABLES------------------------//
-    // Outline width/color for the fake-bold effect (see FONT-BOLD FIX below) -
-    // set directly here, at the same time as fontBold/color, rather than
-    // derived later from a single shared color when the outline is actually
-    // drawn - so each bold variant's outline matches ITS OWN color (inline/
-    // stat/bold) instead of every \B/\BI/\BS style sharing one outline color.
+    // FAKE BOLD -----
+    // The loaded custom font only registers a "normal" weight, so a plain
+    // fontBold request has no bold face to fall back on. Bold is faked with
+    // a heavier outline instead, set in processEscapeCharacter at the same
+    // time as fontBold/color, so the engine's own _drawTextOutline picks it up.
     const BOLD_OUTLINE_WIDTH = 3
     const NORMAL_OUTLINE_WIDTH = 1
     const NORMAL_SPACING_WIDTH = "0px"
@@ -441,48 +174,79 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     const NORMAL_OUTLINE_COLOR = "rgba(0, 0, 0, 0)"
 
     const TEXT_SIZE_NORMAL = 16
-    const TEXT_SIZE_BOLD = TEXT_SIZE_NORMAL
-    const TEXT_SIZE_LABEL = 18
-    const TEXT_SIZE_SUBTITLE = 20
-    const TEXT_SIZE_TITLE = 22
+    const TEXT_SIZE_BOLD = 14
+    const TEXT_SIZE_LABEL = 17
+    const TEXT_SIZE_SUBTITLE = 19
+    const TEXT_SIZE_TITLE = 21
     const TEXT_SIZE_DESCRIPTION = 14
+    /** Pixels taken off the gap between tooltip lines (see calcTextHeight). */
+    const TOOLTIP_LINE_SPACING_TRIM = 4
+    /** Pixels every tooltip line is inset from the contents' left edge, so outlines (bold especially) aren't clipped (see renderEntries). */
+    const TOOLTIP_LEFT_PADDING = 6
 
-    const shopFontOffset = Number(params.shopFontOffset || 3)
+    /** Font size added on top of every TEXT_SIZE_* in the dialogue shop window. */
+    const shopFontOffset = 3
 
-    const textColor = Number(params.textColor || 0)
-    const boldColor = Number(params.boldColor || 0)
-    const labelColor = Number(params.labelColor || 22)
-    const titleColor = Number(params.titleColor || 10)
-    const descColor = Number(params.descColor || 26)
-    const subtitleColor = Number(params.subtitleColor || 18)
-    const inlineColor = Number(params.inlineColor || 1)
-    const statColor = Number(params.statColor || 1)
-    const boldOutlineColor = Number(params.boldOutlineColor || 12)
-    let M_hexColorMap = new Map() //Map containing index colors as hex colors as <Index : Hex>
+    // COLORS -----
+    // Each is either a windowskin index (0-31, like \C[n]) or a "#rrggbb"
+    // string - resolveTextColor turns either into a CSS color at draw time,
+    // since the windowskin isn't loaded yet when this file runs.
+    // textColor must stay an index: \C[${textColor}] strings are built from it.
+    const textColor = 0
+    const titleColor = 10
+    const descColor = 26
+    const subtitleColor = 18
+    const baseColor = "#dee7f3"
+    const statColor = "#bfd2fb"
+    const statDmgColor = 8
+    const statDmgOutlineColor = 10
+    const boldOutlineColor = 12
+    const labelOutlineColor = boldOutlineColor
+    /** Windowskin index -> hex color cache (see hexColorMapManager). @type {Map<number, string>} */
+    const M_hexColorMap = new Map()
 
     // Registers new gamepad symbols on buttons 6/7 (triggers), which the
     // engine's own Input.gamepadMapper leaves unused. Configurable via plugin
     // parameters only, not through an in-game rebind menu. The show/hide
-    // button reuses the existing "shift" symbol instead (see TOGGLE BUTTON).
+    // button is the existing "menu" symbol, gamepad only (see GAMEPAD-ONLY
+    // TOGGLE).
     Input.gamepadMapper[Number(params.gamepadPrevButton || 6)] = "TooltipPrev"
     Input.gamepadMapper[Number(params.gamepadNextButton || 7)] = "TooltipNext"
 
     /**
-     * Builds the tooltip body text for a state from data/WauLau_Tooltips.json.
+     * @param {RPG.State} state - database state object
+     * @returns {object|undefined} the state's entry in $tooltipData.states, if any
+     */
+    function stateTooltipEntry(state) {
+        return (
+            $tooltipData && $tooltipData.states && $tooltipData.states[state.id]
+        )
+    }
+
+    /**
+     * A state whose JSON entry has a "hide" key is left out of tooltips
+     * entirely (no name header either).
+     * @param {RPG.State} state - database state object
+     * @returns {boolean}
+     */
+    function isStateTooltipHidden(state) {
+        const entry = stateTooltipEntry(state)
+        return !!entry && Object.hasOwn(entry, "hide")
+    }
+
+    /**
+     * Builds the tooltip text for a state from data/WauLau_TooltipData.json.
      * @param {RPG.State} state - database state object
      * @param {Game_Battler} battler - battler the tooltip is being shown for
      * @returns {string|null} formatted tooltip text, or null if the state has no JSON entry
      */
     function stateTooltipText(state, battler) {
-        const entry =
-            $dataTooltips &&
-            $dataTooltips.states &&
-            $dataTooltips.states[state.id]
+        const entry = stateTooltipEntry(state)
         if (!entry || !entry.text) return null
         const rawText =
             Array.isArray(entry.text) ? entry.text.join("\n") : entry.text
-        // {expression}s are resolved on the body only, before the \{name\}
-        // header (engine font-size codes, not expression syntax) is attached.
+        // {expression}s are resolved on the body only, before the name
+        // header is attached.
         const text = evaluateTooltipExpressions(battler, rawText)
         return `\\ST[1]${state.name}\\ST[0]\\I[${state.iconIndex}]\\C[${textColor}]\n${text}`
     }
@@ -576,7 +340,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      * @returns {string}
      */
     function evaluateTooltipExpressions(battler, text) {
-        return text.replace(/\{([^{}]+)\}/g, (fullMatch, expr) => {
+        return text.replace(/\{([^{}]+)\}/g, (_, expr) => {
             try {
                 if (enemyPercentOnly && isEnemyBattler(battler)) {
                     const percentText = enemyPercentExpression(expr)
@@ -633,8 +397,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         // (see updateGamepadItemTooltip/updateItemTooltipHover below) so mouse
         // and gamepad tracking can't overwrite each other's selection.
         lastItem: null,
-        /** Set on gamepad dismiss: mouse hover stays off until the mouse moves. */
-        waitForMouseMove: false,
     }
 
     function resetGamepadTooltip() {
@@ -643,7 +405,98 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         gamepadTooltip.itemWindow = null
         gamepadTooltip.row = -1
         gamepadTooltip.lastItem = null
-        gamepadTooltip.waitForMouseMove = false
+    }
+
+    //--------------------------GAMEPAD-ONLY TOGGLE---------------------------//
+    // The toggle is whatever Input.isTriggered("menu") accepts: buttons mapped
+    // to "menu", and - since the engine treats "menu" as escape-compatible -
+    // buttons mapped to "escape" (Mano_InputConfig's "menu/cancel"). On the
+    // keyboard those same symbols are Esc/X/Insert/Numpad 0, which already
+    // mean cancel, and keyboard players get mouse hover only. So the toggle
+    // counts a press only when it came from a gamepad button mapped to one of
+    // TOGGLE_SYMBOLS (read from gamepadMapper at press time, so rebinds apply).
+
+    /** Gamepad symbols that toggle tooltips - the ones that trigger "menu". */
+    const TOGGLE_SYMBOLS = ["menu", "escape"]
+
+    /** True for the one frame a gamepad toggle button went down. */
+    let gamepadMenuTriggered = false
+
+    const _Input_update = Input.update
+    Input.update = function () {
+        gamepadMenuTriggered = false
+        _Input_update.call(this)
+    }
+
+    const _Input_updateGamepadState = Input._updateGamepadState
+    /** Flags a fresh press of any gamepad button mapped to a TOGGLE_SYMBOLS symbol. */
+    Input._updateGamepadState = function (gamepad) {
+        const lastState = this._gamepadStates[gamepad.index] || []
+        _Input_updateGamepadState.call(this, gamepad)
+        const newState = this._gamepadStates[gamepad.index] || []
+        for (let i = 0; i < newState.length; i++) {
+            if (
+                newState[i] &&
+                !lastState[i] &&
+                TOGGLE_SYMBOLS.includes(this.gamepadMapper[i])
+            ) {
+                gamepadMenuTriggered = true
+            }
+        }
+    }
+
+    //---------------------------MOUSE OWNERSHIP------------------------------//
+    // TouchInput.x/y is only the last place the mouse was seen - it never
+    // expires, and TouchInput.clear() (on window focus loss) resets it to
+    // 0,0. Hit-testing it unconditionally makes a resting or stale cursor
+    // "hover" rows/icons while playing on gamepad or keyboard.
+    // So hover is only honored while the mouse owns input: it takes over on
+    // a real move (new position), click, or wheel, and loses it on any new
+    // keyboard/gamepad press or a focus loss. Global across scenes, so a
+    // menu opened by gamepad starts with mouse hover off.
+
+    let mouseInUse = false
+    let lastMouseX = -1
+    let lastMouseY = -1
+
+    /** @returns {boolean} true while the mouse (not keyboard/gamepad) is driving hover. */
+    function isMouseInUse() {
+        return mouseInUse
+    }
+
+    /** Per-frame, right after input polling: decides who owns hover this frame. */
+    function updateMouseOwnership() {
+        // SYNTHETIC MOVES -----
+        // Chromium can fire mousemove without the cursor moving, so a
+        // hover only counts if the position actually changed.
+        const moved =
+            (TouchInput.isMoved() || TouchInput.isHovered()) &&
+            (TouchInput.x !== lastMouseX || TouchInput.y !== lastMouseY)
+        lastMouseX = TouchInput.x
+        lastMouseY = TouchInput.y
+        if (
+            moved ||
+            TouchInput.isTriggered() ||
+            TouchInput.isCancelled() ||
+            TouchInput.wheelY !== 0
+        ) {
+            mouseInUse = true
+        } else if (Input._latestButton && Input._pressedTime === 0) {
+            mouseInUse = false
+        }
+    }
+
+    const _SceneManager_updateInputData = SceneManager.updateInputData
+    SceneManager.updateInputData = function () {
+        _SceneManager_updateInputData.call(this)
+        updateMouseOwnership()
+    }
+
+    const _TouchInput_clear = TouchInput.clear
+    /** Focus loss resets the cursor to 0,0 - that position is never a real hover. */
+    TouchInput.clear = function () {
+        _TouchInput_clear.call(this)
+        mouseInUse = false
     }
 
     //============================================================================//
@@ -779,6 +632,14 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      */
     function battlerTooltipStillValid(scene, battler) {
         if (!battler) return false
+        // In battle, dead and hidden (not yet appeared) battlers are skipped.
+        // isAlive() covers both: it's isAppeared() && !isDeathStateAffected().
+        if (
+            scene instanceof Scene_Battle &&
+            !battler.isActor() &&
+            !battler.isAlive()
+        )
+            return false
         const iconSprite = findStateIconSprite(scene, battler)
         if (iconSprite) return iconSprite.visible !== false
         const layer = scene._windowLayer
@@ -896,19 +757,19 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         // allMembers(), not members(): in battle members() is only the
         // battle members, and a reserve actor is still a party member.
         if ($gameParty.allMembers().includes(battler)) {
-            // For party members
             tooltip.frontSpriteHue = -104
             tooltip.backSpriteHue = -34
             tooltip.backSpriteOpacity = 120
         } else {
-            // For enemies/non party members
-            tooltip.frontSpriteHue = -0
+            tooltip.frontSpriteHue = 0
             tooltip.backSpriteHue = -105
             tooltip.backSpriteOpacity = 185
         }
         tooltip.backOpacity = 255
 
         scene._tooltipSwapBattler = null
+        // Undoes a wider battle item width (see showItemTooltip).
+        tooltip._maxTextWidth = maxTooltipWidth
         tooltip.setup(battler)
         scene._stateTooltip.visible = true
         scene._stateTooltip.tooltipActive = true
@@ -921,10 +782,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return true
     }
 
-    /** Scene_MenuBase.hideTooltip() - also cancels a queued battler swap.
+    /**
+     * Closes the tooltip and cancels a queued battler swap.
      * @param {Scene_Base} scene
-     * @function hideTooltip
-     * @memberof Scene_MenuBase
      */
     function hideTooltip(scene) {
         scene._stateTooltip.close()
@@ -954,14 +814,19 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      */
     function showItemTooltip(scene, item) {
         scene._tooltipSwapBattler = null
-        scene._stateTooltip.setupItem(item, "Tooltip")
+        // Set before setupItem, which wraps the text to it. Battle's
+        // item/skill tooltips sit above the action list, so they get more room.
+        scene._stateTooltip._maxTextWidth =
+            scene instanceof Scene_Battle ?
+                maxBattleItemTooltipWidth
+            :   maxTooltipWidth
+        scene._stateTooltip.setupItem(item, scene, "Tooltip")
         scene._stateTooltip.visible = true
         scene._stateTooltip.tooltipActive = true
         scene._stateTooltip.backOpacity = 255
         scene._stateTooltip.frontSpriteHue = -10
         scene._stateTooltip.backSpriteHue = 64
         scene._stateTooltip.backSpriteOpacity = 195
-        //scene._stateTooltip.openness = 0
         scene._tooltipItemMode = true
         scene.addChild(scene._stateTooltip)
     }
@@ -969,7 +834,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     /** Turns gamepad tooltip browsing off and hides the tooltip. @param {Scene_Base} scene */
     function deactivateGamepadTooltip(scene) {
         resetGamepadTooltip()
-        gamepadTooltip.waitForMouseMove = true
         scene._tooltipItemMode = false
         scene._tooltipHoveredItem = null
         hideTooltip(scene)
@@ -991,24 +855,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         let x, y
         if (anchor) {
             x = anchor.x + TOOLTIP_ANCHOR_GAP_X
-            // // X-AXIS
-            // const right = anchor.x + (anchor.width || 0) - TOOLTIP_ANCHOR_GAP_X
-            // const left = anchor.x + TOOLTIP_ANCHOR_GAP_X - tw
-            // if (right + tw <= Graphics.boxWidth) {
-            //     x = right
-            // } else if (left >= 0) {
-            //     x = left
-            // } else {
-            //     // Neither side fully fits - clamp to whichever is closest.
-            //     x =
-            //         (
-            //             Math.abs(Graphics.boxWidth - (right + th)) >
-            //             Math.abs(left)
-            //         ) ?
-            //             right
-            //         :   left
-            // }
-            // Y-AXIS
+
+            // FLIP ABOVE/BELOW -----
             const below = anchor.y + (anchor.height || 0) - TOOLTIP_ANCHOR_GAP_Y
             const above = anchor.y + TOOLTIP_ANCHOR_GAP_Y - th
             if (below + th <= Graphics.boxHeight) {
@@ -1026,8 +874,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                     :   below
             }
         } else {
-            x = Graphics.boxWidth / 2
-            y = Graphics.boxHeight / 2
+            x = (Graphics.boxWidth - tw) / 2
+            y = (Graphics.boxHeight - th) / 2
         }
 
         scene._stateTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw))
@@ -1119,7 +967,49 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             gamepadTooltip.lastItem = item
             showItemTooltip(scene, item)
         }
-        positionTooltipAt(scene, anchorPositionForItemRow(win, index))
+        // Battle anchors item tooltips to the whole list window instead
+        // (see positionTooltipAboveWindow, driven from Scene_Battle.update).
+        if (!(scene instanceof Scene_Battle)) {
+            positionTooltipAt(scene, anchorPositionForItemRow(win, index))
+        }
+    }
+
+    const TOOLTIP_WINDOW_GAP_Y = 4
+    /**
+     * Battle-only anchor for item/skill tooltips: sits just above the list
+     * window (dropping below it only when there's no room above), aligned
+     * to whichever edge - left or right - the selected row is on.
+     * @param {Scene_Base} scene
+     * @param {Window_Selectable} win - the list window the tooltip's item is from
+     * @param {number} index - row the tooltip's item is on (-1 aligns right)
+     */
+    function positionTooltipAboveWindow(scene, win, index) {
+        const tw = scene._stateTooltip.width
+        const th = scene._stateTooltip.height
+        // World coords: the tooltip lives on the scene, the list inside
+        // _windowLayer, which may be offset from the scene origin.
+        const origin = win.worldTransform.apply(new Point(0, 0))
+
+        // ROW SIDE -----
+        // Measured from the row's own rect rather than index % maxCols, so
+        // it holds for any column count (rect x is relative to the
+        // contents area, hence the padding).
+        let alignLeft = false
+        if (index >= 0) {
+            const rect = win.itemRect(index)
+            const rowCenter = win.padding + rect.x + rect.width / 2
+            alignLeft = rowCenter < win.width / 2
+        }
+
+        const x = alignLeft ? origin.x : origin.x + win.width - tw
+        let y = origin.y - th - TOOLTIP_WINDOW_GAP_Y
+        if (y < 0) y = origin.y + win.height + TOOLTIP_WINDOW_GAP_Y
+
+        scene._stateTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw))
+        scene._stateTooltip.y = Math.max(
+            0,
+            Math.min(y, Graphics.boxHeight - th)
+        )
     }
 
     /**
@@ -1130,11 +1020,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      */
     function updateGamepadTooltip(scene) {
         // TOGGLE BUTTON -----
-        // "shift" is the dash symbol (gamepad X / keyboard Shift). Dashing
-        // only happens on the map, and this only runs in battle/menu scenes,
-        // so the button is free here. Using the symbol (not a raw button
-        // index) keeps it following any rebind of dash.
-        if (Input.isTriggered("menu")) {
+        // Gamepad "menu" only (see GAMEPAD-ONLY TOGGLE): it has no use inside
+        // menus and battle, while its keyboard keys are cancel.
+        if (gamepadMenuTriggered) {
             if (gamepadTooltip.active) {
                 deactivateGamepadTooltip(scene)
             } else {
@@ -1163,14 +1051,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
 
         if (Input.isTriggered("TooltipNext")) {
-            gamepadTooltip.index =
-                (gamepadTooltip.index + 1) % gamepadTooltip.battlers.length
-            selectGamepadTooltipBattler(scene)
+            stepGamepadTooltipBattler(scene, 1)
         } else if (Input.isTriggered("TooltipPrev")) {
-            gamepadTooltip.index =
-                (gamepadTooltip.index - 1 + gamepadTooltip.battlers.length) %
-                gamepadTooltip.battlers.length
-            selectGamepadTooltipBattler(scene)
+            stepGamepadTooltipBattler(scene, -1)
+        }
+    }
+
+    /**
+     * Moves gamepad battler browsing to the next/previous battler that is
+     * still valid (see battlerTooltipStillValid), skipping any that died or
+     * vanished since browsing started. Stays put if no other one is valid.
+     * @param {Scene_Base} scene
+     * @param {1|-1} step - direction to cycle in
+     */
+    function stepGamepadTooltipBattler(scene, step) {
+        const battlers = gamepadTooltip.battlers
+        const count = battlers.length
+        for (let i = 1; i < count; i++) {
+            const index = (gamepadTooltip.index + step * i + count * i) % count
+            if (battlerTooltipStillValid(scene, battlers[index])) {
+                gamepadTooltip.index = index
+                selectGamepadTooltipBattler(scene)
+                return
+            }
         }
     }
 
@@ -1180,18 +1083,21 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     // once per frame at the scene level so multiple visible lists (e.g. the
     // equip screen's slot + picker lists) can't fight over the tooltip.
     // Only touches item-mode tooltips (_tooltipItemMode), so this never
-    // fights the separate state/buff icon-hover system above. The mouse
-    // takes over from gamepad browsing only once it has actually moved
-    // (TouchInput.isMoved()/isHovered()) AND landed on a real item, so a
-    // resting cursor or a move into empty space can't interrupt gamepad mode.
+    // fights the separate state/buff icon-hover system above. Nothing counts
+    // as hovered unless the mouse owns input (see MOUSE OWNERSHIP), and the
+    // mouse takes over from gamepad browsing only once it also lands on a
+    // real item, so a move into empty space can't interrupt gamepad mode.
+
+    /** Frames the mouse must rest on a row before its tooltip opens. */
+    const TOOLTIP_HOVER_DELAY_FRAMES = 15
 
     /** @param {Scene_Base} scene */
     function updateItemTooltipHover(scene) {
-        const mouseActive = TouchInput.isMoved() || TouchInput.isHovered()
-
         let hoveredItem = null
+        let hoveredWindow = null
+        let hoveredIndex = -1
         const layer = scene._windowLayer
-        if (layer) {
+        if (layer && isMouseInUse()) {
             for (const child of layer.children) {
                 if (
                     !isItemHoverWindow(child) ||
@@ -1199,23 +1105,30 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 ) {
                     continue
                 }
-                const index = child.hitIndex()
+                const index = tooltipHitIndex(child)
                 if (index >= 0) {
                     const item = child.itemAt(index)
-                    if (item) hoveredItem = item
+                    if (item) {
+                        hoveredItem = item
+                        hoveredWindow = child
+                        hoveredIndex = index
+                    }
                 }
             }
         }
-
-        // A resting mouse over a list row would otherwise reopen its own
-        // tooltip right after a gamepad dismiss, so after gamepad use the
-        // mouse has to actually move onto an item to take over again.
-        if (gamepadTooltip.active || gamepadTooltip.waitForMouseMove) {
-            if (!mouseActive || !hoveredItem) return
-            resetGamepadTooltip()
+        // Kept while nothing is hovered, so a closing tooltip has a window
+        // to stay anchored to (battle only - see Scene_Battle.update).
+        if (hoveredWindow) {
+            scene._tooltipHoveredWindow = hoveredWindow
+            scene._tooltipHoveredIndex = hoveredIndex
         }
 
-        const TOOLTIP_HOVER_DELAY_FRAMES = 15
+        // With the mouse not in use hoveredItem is null, so a mouse tooltip
+        // still up closes below (nothing hovered) and none can reopen.
+        if (gamepadTooltip.active) {
+            if (!hoveredItem) return
+            resetGamepadTooltip()
+        }
 
         if (hoveredItem) {
             // SWAP IN PROGRESS -----
@@ -1225,33 +1138,27 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             if (scene._tooltipSwapItem) {
                 scene._tooltipSwapItem = hoveredItem
                 if (scene._stateTooltip.openness > 0) return
-                console.log("Swap closed - Open new")
                 scene._tooltipSwapItem = null
                 scene._tooltipHoveredItem = hoveredItem
                 showItemTooltip(scene, hoveredItem)
                 return
             }
             if (hoveredItem === scene._tooltipHoveredItem) {
-                console.log("Same - Return")
                 return // already showing it
             }
             // openness > 0, not isOpen(): a tooltip that's still opening
             // counts as up too, or a fast switch would skip the close.
             if (scene._tooltipItemMode && scene._stateTooltip.openness > 0) {
-                console.log("TT Already Up - Close, then swap")
                 // hideTooltip, not close(): it clears tooltipActive, which
                 // the window's own update() would otherwise reopen from.
                 scene._tooltipSwapItem = hoveredItem
                 scene._tooltipPendingItem = null
-                scene._tooltipDelayFrames = 8
                 hideTooltip(scene)
             } else if (hoveredItem !== scene._tooltipPendingItem) {
                 // New hover (or moved to another item mid-wait): restart the countdown.
-                console.log("New hover - Start cooldown")
                 scene._tooltipPendingItem = hoveredItem
                 scene._tooltipDelayFrames = TOOLTIP_HOVER_DELAY_FRAMES
             } else if (--scene._tooltipDelayFrames <= 0) {
-                console.log("Delay finished - Show tt")
                 scene._tooltipPendingItem = null
                 scene._tooltipHoveredItem = hoveredItem
                 showItemTooltip(scene, hoveredItem)
@@ -1280,8 +1187,103 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return (
             win instanceof Window_ItemList ||
             win instanceof Window_EquipSlot ||
-            win instanceof Window_ShopBuy
+            win instanceof Window_ShopBuy ||
+            win instanceof Window_SkillList ||
+            win instanceof Window_ActorCommand ||
+            !!win._wdItemList
         )
+    }
+
+    /**
+     * Row the mouse is over for tooltip purposes. Windows may narrow this
+     * with their own tooltipHitIndex() (e.g. only an icon), without touching
+     * the hitIndex() the engine uses for selecting rows.
+     * @param {Window_Selectable} win
+     * @returns {number} row index, or -1
+     */
+    function tooltipHitIndex(win) {
+        return typeof win.tooltipHitIndex === "function" ?
+                win.tooltipHitIndex()
+            :   win.hitIndex()
+    }
+
+    //---------------------------WD_ITEMUSE SELECTOR--------------------------//
+    // PRIVATE CLASSES -----
+    // WD_ItemUse is minified inside its own closure: its list window (local
+    // "m") and the item array it draws from (local "n") are unreachable from
+    // here, and only the scene is exported, as SceneManager.Scene_WdItems.
+    // Its rows are also JSON.parse(JSON.stringify()) copies tagged with
+    // itemCategory, which fail DataManager.isItem's identity check.
+    // So while the scene builds its list window, JSON.parse results are
+    // recorded, the copies the window ended up with are picked out, and the
+    // window gets an itemAt() that maps each copy back to its database object.
+
+    const WD_CATEGORY_TABLES = {
+        Item: () => $dataItems,
+        Weapon: () => $dataWeapons,
+        Armor: () => $dataArmors,
+    }
+    // Item 400 "Nothing": the selector's cancel-like row, never tooltipped.
+    const WD_NOTHING_ITEM_ID = 400
+
+    /**
+     * Picks WD_ItemUse's row list out of everything JSON.parse returned while
+     * its window was built. Modes 1-4 parse one whole inventory array (equip
+     * copies are pushed into it); mode 5 parses and pushes each row on its own.
+     * Unrelated parses (e.g. from text drawing) never get an itemCategory.
+     * @param {Array} parsed - JSON.parse results, in call order
+     * @param {number} expected - the window's maxItems()
+     * @returns {Array|null} the window's rows, or null if they can't be matched
+     */
+    function findWdItemRows(parsed, expected) {
+        const isRow = (obj) => !!obj && typeof obj.itemCategory === "string"
+        const whole = parsed.find(
+            (obj) =>
+                Array.isArray(obj) &&
+                obj.length === expected &&
+                obj.every(isRow)
+        )
+        if (whole) return whole
+        const rows = parsed.filter((obj) => !Array.isArray(obj) && isRow(obj))
+        return rows.length === expected ? rows : null
+    }
+
+    const WdItemScene = SceneManager.Scene_WdItems
+    if (WdItemScene) {
+        const _WdItemScene_createWdItemWindow =
+            WdItemScene.prototype.createWdItemWindow
+        WdItemScene.prototype.createWdItemWindow = function () {
+            const parsed = []
+            const _JSON_parse = JSON.parse
+            JSON.parse = function () {
+                const result = _JSON_parse.apply(this, arguments)
+                parsed.push(result)
+                return result
+            }
+            try {
+                _WdItemScene_createWdItemWindow.call(this)
+            } finally {
+                JSON.parse = _JSON_parse
+            }
+
+            const win = this._wdItemWindow
+            const rows = win && findWdItemRows(parsed, win.maxItems())
+            if (!rows) return
+            win._wdItemList = rows
+            /** @param {number} index @returns {RPG.BaseItem|null} */
+            win.itemAt = function (index) {
+                const row = this._wdItemList[index]
+                if (
+                    row &&
+                    row.itemCategory === "Item" &&
+                    row.id === WD_NOTHING_ITEM_ID
+                ) {
+                    return null
+                }
+                const table = row && WD_CATEGORY_TABLES[row.itemCategory]
+                return table ? table()[row.id] || null : null
+            }
+        }
     }
 
     /**
@@ -1298,12 +1300,101 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 isItemHoverWindow(child) &&
                 child.active &&
                 isWindowUsableForTooltip(child) &&
-                child.index() >= 0
+                child.index() >= 0 &&
+                // SPARSE ROWS -----
+                // The actor command list only has a tooltip on its Attack
+                // row; on any other row the button keeps browsing battlers.
+                (!(child instanceof Window_ActorCommand) ||
+                    child.itemAt(child.index()))
             ) {
                 return child
             }
         }
         return null
+    }
+
+    //--------------------------ACTOR COMMAND ATTACK ROW--------------------------//
+    // The battle Attack command is the actor's attack skill (attackSkillId()
+    // covers weapon Attack Skill traits and Grinning Beast's claws). Its row
+    // gets an icon on the right edge: hovering that icon (not the whole row,
+    // which still just selects it) shows the skill's tooltip, and on gamepad
+    // the tooltip button shows it while the Attack row has the cursor.
+
+    const ATTACK_TOOLTIP_ICON = 155
+
+    /**
+     * The attack skill for the Attack row, null for every other row.
+     * @param {number} index
+     * @returns {RPG.Skill|null}
+     */
+    Window_ActorCommand.prototype.itemAt = function (index) {
+        if (!this._actor || this.commandSymbol(index) !== "attack") return null
+        return $dataSkills[this._actor.attackSkillId()] || null
+    }
+
+    /**
+     * Contents-space rect of the tooltip icon at the right edge of a row.
+     * @param {number} index
+     * @returns {Rectangle}
+     */
+    Window_ActorCommand.prototype.attackTooltipIconRect = function (index) {
+        const rect = this.itemLineRect(index)
+        const iw = Math.floor(ImageManager.iconWidth * 0.7)
+        const ih = Math.floor(ImageManager.iconHeight * 0.7)
+        return new Rectangle(
+            rect.x + rect.width - iw,
+            rect.y + Math.floor(rect.height / 2) - Math.floor(ih / 2),
+            iw,
+            ih
+        )
+    }
+    Window_ActorCommand.prototype.drawIconCustomSize = function (
+        iconIndex,
+        x,
+        y,
+        iWidth = 32,
+        iHeight = 32
+    ) {
+        const bitmap = ImageManager.loadSystem("IconSet")
+        const pw = ImageManager.iconWidth
+        const ph = ImageManager.iconHeight
+        const sx = (iconIndex % 16) * pw
+        const sy = Math.floor(iconIndex / 16) * ph
+        const dw = iWidth
+        const dh = iHeight
+        this.contents.blt(bitmap, sx, sy, pw, ph, x, y, dw, dh)
+    }
+
+    const _Window_ActorCommand_drawItem = Window_ActorCommand.prototype.drawItem
+    /** Adds the tooltip icon to the Attack row. */
+    Window_ActorCommand.prototype.drawItem = function (index) {
+        _Window_ActorCommand_drawItem.call(this, index)
+        if (this.commandSymbol(index) !== "attack") return
+        const rect = this.attackTooltipIconRect(index)
+        this.changePaintOpacity(true)
+        this.drawIconCustomSize(
+            ATTACK_TOOLTIP_ICON,
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        )
+    }
+
+    /**
+     * Tooltip hover is the Attack row's icon only (see tooltipHitIndex).
+     * Same local-space math as Window_Selectable.hitTest.
+     * @returns {number} the Attack row's index while its icon is hovered, else -1
+     */
+    Window_ActorCommand.prototype.tooltipHitIndex = function () {
+        const index = this.findSymbol("attack")
+        if (index < 0) return -1
+        const touchPos = new Point(TouchInput.x, TouchInput.y)
+        const localPos = this.worldTransform.applyInverse(touchPos)
+        if (!this.innerRect.contains(localPos.x, localPos.y)) return -1
+        const cx = this.origin.x + localPos.x - this.padding
+        const cy = this.origin.y + localPos.y - this.padding
+        return this.attackTooltipIconRect(index).contains(cx, cy) ? index : -1
     }
 
     /**
@@ -1325,29 +1416,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             width: rect.width,
             height: rect.height,
         }
-    }
-
-    //---------------------------SHOP STATUS PAGING---------------------------//
-    // SHIFT CONFLICT -----
-    // Window_ShopStatus pages through party members on "shift", the same
-    // symbol as the tooltip button. The status window updates (inside the
-    // scene's window layer) before updateGamepadTooltip runs, so checking
-    // only for an already-open tooltip would still page on the opening
-    // press. Instead, shift is blocked whenever the tooltip code will
-    // claim it: a tooltip is up, or an item list is ready to open one.
-    // Clicking the status window still pages.
-
-    const _Window_ShopStatus_isPageChangeRequested =
-        Window_ShopStatus.prototype.isPageChangeRequested
-    /** Ignores shift while the tooltip button owns it; touch paging is unchanged. */
-    Window_ShopStatus.prototype.isPageChangeRequested = function () {
-        const scene = SceneManager._scene
-        const tooltipOwnsShift =
-            gamepadTooltip.active || !!findActiveItemWindow(scene)
-        if (tooltipOwnsShift && Input.isTriggered("shift")) {
-            return TouchInput.isTriggered() && this.isTouchedInsideFrame()
-        }
-        return _Window_ShopStatus_isPageChangeRequested.call(this)
     }
 
     //============================================================================//
@@ -1377,14 +1445,23 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         // FREEZE ON CLOSE -----
         // A closing tooltip (tooltipActive false) stays put - otherwise one
         // dismissed by gamepad would snap to the mouse for its close animation.
-        if (
-            this._stateTooltip.visible &&
-            this._stateTooltip.tooltipActive &&
-            !gamepadTooltip.active
-        ) {
+        if (!this._stateTooltip.visible || !this._stateTooltip.tooltipActive) {
+            return
+        }
+        // BATTLE MENU ANCHOR -----
+        // Item/skill tooltips sit above the action list, on the selected
+        // row's side, for mouse and gamepad alike, instead of following the
+        // cursor/row.
+        if (this._tooltipItemMode) {
+            const [win, index] =
+                gamepadTooltip.active ?
+                    [gamepadTooltip.itemWindow, gamepadTooltip.row]
+                :   [this._tooltipHoveredWindow, this._tooltipHoveredIndex]
+            if (win) positionTooltipAboveWindow(this, win, index)
+        } else if (!gamepadTooltip.active && isMouseInUse()) {
             positionTooltipAt(this, {
-                x: TouchInput.x + WauLau.StateTooltips.offsetX,
-                y: TouchInput.y + WauLau.StateTooltips.offsetY,
+                x: TouchInput.x + TOOLTIP_CURSOR_OFFSET_X,
+                y: TouchInput.y + TOOLTIP_CURSOR_OFFSET_Y,
                 width: 0,
                 height: 0,
             })
@@ -1454,17 +1531,19 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         if (
             this._stateTooltip.visible &&
             this._stateTooltip.tooltipActive &&
-            !gamepadTooltip.active
+            !gamepadTooltip.active &&
+            isMouseInUse()
         ) {
             positionTooltipAt(this, {
-                x: TouchInput.x + WauLau.StateTooltips.offsetX,
-                y: TouchInput.y + WauLau.StateTooltips.offsetY,
+                x: TouchInput.x + TOOLTIP_CURSOR_OFFSET_X,
+                y: TouchInput.y + TOOLTIP_CURSOR_OFFSET_Y,
                 width: 0,
                 height: 0,
             })
         }
     }
 
+    /** Delegates to {@link activateGamepadTooltip}. */
     Scene_MenuBase.prototype.activateGamepadTooltip = function () {
         activateGamepadTooltip(this)
     }
@@ -1550,14 +1629,18 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
+    //============================================================================//
+    //                           STATE ICON HOVER                                 //
+    //============================================================================//
+
+    // DRAWN ICONS -----
     // Window_MenuStatus and Window_Status (the party list and the detailed
     // character screen) don't use Sprite_StateIcon at all - Window_StatusBase's
-    // drawActorIcons() just draws icons straight onto the window's bitmap with
-    // drawIcon(), so there's no sprite object for the mouse-enter/exit hooks
-    // above to attach to. Record each drawn icon's screen rect per actor here,
-    // then hit-test them by hand against the window's own contents sprite
-    // transform (the same technique Sprite_StateIcon.isBeingTouched uses, just
-    // applied to the window's internal _contentsSprite instead of a sprite).
+    // drawActorIcons() draws icons straight onto the window's bitmap, so there's
+    // no sprite for the mouse-enter/exit hooks below to attach to. Each drawn
+    // icon's rect is recorded per actor here, then hit-tested by hand against
+    // the window's _contentsSprite transform (the same technique
+    // Sprite_StateIcon.isBeingTouched uses on a sprite).
     const _Window_StatusBase_drawActorIcons =
         Window_StatusBase.prototype.drawActorIcons
     Window_StatusBase.prototype.drawActorIcons = function (actor, x, y, width) {
@@ -1578,19 +1661,21 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     const _Window_StatusBase_update = Window_StatusBase.prototype.update
+    /** Per-frame: hit-tests the recorded icon rects (see DRAWN ICONS). */
     Window_StatusBase.prototype.update = function () {
         _Window_StatusBase_update.call(this)
         this.updateTooltipIconHover()
     }
 
+    /** Shows/hides the tooltip for whichever drawn icon the mouse is over. */
     Window_StatusBase.prototype.updateTooltipIconHover = function () {
         if (!this._tooltipIconRects || !sceneHasTooltipSupport()) return
-        // A window can go from visible to hidden without ever losing the mouse
-        // (e.g. Scene_Battle.commandSkill/commandItem in rmmz_scenes.js hides
-        // the party status window when the skill/item list opens) - without
-        // this check, the stale TouchInput position from before it was hidden
-        // would keep matching the last-hovered rect and the tooltip would show
-        // right through the new window on top of it.
+        // HIDDEN WINDOW -----
+        // A window can be hidden without ever losing the mouse (e.g.
+        // Scene_Battle.commandSkill hides the party status window when the
+        // skill list opens). Without this check, the stale mouse position
+        // would keep matching the last-hovered rect and the tooltip would
+        // show through the window on top.
         if (!isWindowUsableForTooltip(this)) {
             if (this._tooltipHoveredBattler) {
                 this._tooltipHoveredBattler = null
@@ -1603,8 +1688,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         const localPos =
             this._contentsSprite.worldTransform.applyInverse(touchPos)
 
+        // Without mouse ownership nothing is hovered, so a mouse tooltip
+        // still up closes below - before a same-frame gamepad toggle opens.
+        const iconRects =
+            isMouseInUse() ? Object.values(this._tooltipIconRects) : []
         let hoveredBattler = null
-        for (const rects of Object.values(this._tooltipIconRects)) {
+        for (const rects of iconRects) {
             for (const rect of rects) {
                 if (
                     localPos.x >= rect.x &&
@@ -1630,22 +1719,25 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
-    let gbccoffee_statetooltips_spritestateicon_initialize =
-        Sprite_StateIcon.prototype.initialize
+    // SPRITE ICONS -----
+    // Enemies and the battle status window show state icons as real
+    // Sprite_StateIcon objects, which get mouse enter/exit hooks here.
+
+    const _Sprite_StateIcon_initialize = Sprite_StateIcon.prototype.initialize
     Sprite_StateIcon.prototype.initialize = function () {
-        gbccoffee_statetooltips_spritestateicon_initialize.call(this)
+        _Sprite_StateIcon_initialize.call(this)
         this._hovered = false
     }
 
-    let gbccoffee_statetooltips_spritestateicon_update =
-        Sprite_StateIcon.prototype.update
+    const _Sprite_StateIcon_update = Sprite_StateIcon.prototype.update
     Sprite_StateIcon.prototype.update = function () {
-        gbccoffee_statetooltips_spritestateicon_update.call(this)
+        _Sprite_StateIcon_update.call(this)
         this.processTouch()
     }
 
+    /** Fires onMouseEnter/onMouseExit as the mouse moves on/off the icon. */
     Sprite_StateIcon.prototype.processTouch = function () {
-        if (this.isBeingTouched()) {
+        if (isMouseInUse() && this.isBeingTouched()) {
             if (!this._hovered && TouchInput.isHovered()) {
                 this._hovered = true
                 this.onMouseEnter()
@@ -1654,15 +1746,11 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             if (this._hovered) {
                 this.onMouseExit()
             }
-            this._pressed = false
             this._hovered = false
         }
     }
 
-    Sprite_StateIcon.prototype.isPressed = function () {
-        return this._pressed
-    }
-
+    /** @returns {boolean} true while the mouse position is inside the icon */
     Sprite_StateIcon.prototype.isBeingTouched = function () {
         const touchPos = new Point(TouchInput.x, TouchInput.y)
         const localPos = this.worldTransform.applyInverse(touchPos)
@@ -1743,6 +1831,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this.backSpriteOpacity = 255
         /** Widest a line may get before wrapping; per-window so the shop window can differ. */
         this._maxTextWidth = maxTooltipWidth
+        /** Pixels taken off every line's spacing (see calcTextHeight); per-window so the shop window can keep matching the message window. */
+        this._lineSpacingTrim = TOOLTIP_LINE_SPACING_TRIM
         /** If true, shows/hides via open()/close() (openness) instead of fading. */
         this._useOpenAnimation = true
         /** If true, the open animation unrolls from the top edge instead of the center. */
@@ -1750,7 +1840,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this.openness = this._useOpenAnimation ? 0 : 255
         /** Characters typed per frame once open; 0 draws everything instantly. */
         this._charsPerFrame = 0
-        /** @type {{text:string, x:number, y:number, state:RPG.State|null, buff:object|null}[]} */
+        /** @type {{text:string, x:number, y:number, state:RPG.State|null}[]} */
         this._typewriterQueue = []
         /** @type {object|null} textState of the entry currently being typed */
         this._typewriterState = null
@@ -1821,9 +1911,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             this.visible = false
         }
     }
-    /** Hue-rotates the background and frame (-360..360).
-     * @param {number} hueBack the hue shift for the background sprites
-     * @param {number} hueFront the hue shift for the front sprites
+    /**
+     * Applies backSpriteHue/frontSpriteHue (-360..360) and backSpriteOpacity
+     * to the background and frame sprites.
      */
     Window_StateTooltip.prototype.setHue = function () {
         this._backSprite.setHue(this.backSpriteHue)
@@ -1832,25 +1922,62 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     // --------------------------------TEXT WRAPPING-------------------------------//
-    // The base engine doesn't wrap text by width outside Window_Message, so
-    // long lines are word-wrapped here: real \n characters are inserted where
-    // the next word would exceed maxWidth, measured with textSizeEx (which
-    // ignores escape codes) so bold/color state carries correctly across breaks.
+    // The base engine doesn't wrap text by width, so long lines are
+    // word-wrapped here: real \n characters are inserted where the next word
+    // would exceed maxWidth, measured with textSizeEx (which runs the escape
+    // codes, so icons and size changes are measured as drawn).
+    // CARRIED STYLE -----
+    // Drawing keeps font state across \n, but textSizeEx starts every
+    // measurement from the reset font. So each line is measured with every
+    // size/style code before it prefixed - otherwise a line continuing
+    // e.g. a \DE[1] description would be measured at normal size.
+
+    /** Zero-width escape codes that change glyph size/spacing (see processEscapeCharacter). */
+    const WRAP_STYLE_CODE_REGEX =
+        /\\(?:BSD|BI|BS|B|IT|LB|ST|TI|DE|FS)\[\d+\]|\\[{}]/gi
+
+    /** @param {string} text @returns {string} every size/style code in text, in order */
+    function styleCodesIn(text) {
+        return (text.match(WRAP_STYLE_CODE_REGEX) || []).join("")
+    }
 
     /**
      * @param {Window_Base} win
      * @param {string} line - single line, no \n
      * @param {number} maxWidth - pixels
+     * @param {string} [carried=""] - style codes still active from earlier lines
      * @returns {string} the line with \n inserted at wrap points
      */
-    function wrapLine(win, line, maxWidth) {
+    function wrapLine(win, line, maxWidth, carried = "") {
+        const justifyAt = line.indexOf(JUSTIFY_CODE)
+        if (justifyAt !== -1) {
+            return wrapJustifiedLine(win, line, justifyAt, maxWidth, carried)
+        }
+
+        const alignAt = line.indexOf("\\>")
+        if (alignAt !== -1) {
+            const column = wrapRightAlignedLine(
+                win,
+                line,
+                alignAt,
+                maxWidth,
+                carried
+            )
+            if (column !== null) return column
+        }
+
         const words = line.split(" ")
         let wrapped = ""
         let current = ""
+        let lineStart = carried
         for (const word of words) {
             const candidate = current ? `${current} ${word}` : word
-            if (current && win.textSizeEx(candidate).width > maxWidth) {
+            if (
+                current &&
+                win.textSizeEx(lineStart + candidate).width > maxWidth
+            ) {
                 wrapped += (wrapped ? "\n" : "") + current
+                lineStart += styleCodesIn(current)
                 current = word
             } else {
                 current = candidate
@@ -1860,11 +1987,112 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return wrapped
     }
 
+    // RIGHT-ALIGNED COLUMN -----
+    // A "Label:\>value" line that's too long wraps only its value, inside
+    // the column right of the label, and every continuation line starts
+    // with \>[labelWidth] - so it stays right-aligned and never runs back
+    // under the label (see processRightAlign):
+    //   |Inflicts:     Bleed3, Bleed2|
+    //   |                     Bleed1|
+
+    /** Narrowest value column worth keeping; below it the line wraps normally. */
+    const RIGHT_ALIGN_MIN_COLUMN = 48
+
+    /**
+     * @param {Window_Base} win
+     * @param {string} line - single line, no \n, containing \> at alignAt
+     * @param {number} alignAt - index of the first \> in line
+     * @param {number} maxWidth - pixels
+     * @param {string} carried - style codes still active from earlier lines
+     * @returns {string|null} the wrapped line, or null to wrap it normally
+     *   (the label leaves too little room for a value column)
+     */
+    function wrapRightAlignedLine(win, line, alignAt, maxWidth, carried) {
+        const label = line.slice(0, alignAt)
+        const value = line.slice(alignAt + 2)
+        const labelWidth = Math.ceil(win.textSizeEx(carried + label).width)
+        const columnWidth = maxWidth - labelWidth - RIGHT_ALIGN_MIN_GAP
+        if (columnWidth < RIGHT_ALIGN_MIN_COLUMN) return null
+
+        const valueLines = wrapLine(
+            win,
+            value,
+            columnWidth,
+            carried + styleCodesIn(label)
+        ).split("\n")
+        return (
+            `${label}\\>${valueLines[0]}` +
+            valueLines
+                .slice(1)
+                .map((valueLine) => `\n\\>[${labelWidth}]${valueLine}`)
+                .join("")
+        )
+    }
+
+    // JUSTIFIED LIST (\JU) -----
+    // "Label:\>\JU A, B, C" marks a ", "-separated list (\JU needs a space
+    // or another non-letter after it, or the next word joins the code).
+    // If the whole line fits, it's kept as written, minus the \JU. If not,
+    // the label (anything before \JU, trailing \> dropped) moves to its own
+    // line and the list wraps item by item, never inside an item. Every
+    // wrapped row but the last gets \JG gaps, which processJustifyGap
+    // widens at draw time so the row ends flush at the right edge:
+    //   |Cures:                          |
+    //   |Poison,   Blind,   Bleed1,   Burn|
+    //   |Acid, Sleep                      |
+
+    const JUSTIFY_CODE = "\\JU"
+    const JUSTIFY_SEPARATOR = ", "
+
+    /**
+     * @param {Window_Base} win
+     * @param {string} line - single line, no \n, containing \JU at justifyAt
+     * @param {number} justifyAt - index of \JU in line
+     * @param {number} maxWidth - pixels
+     * @param {string} carried - style codes still active from earlier lines
+     * @returns {string} the line, or its label and justified rows joined by \n
+     */
+    function wrapJustifiedLine(win, line, justifyAt, maxWidth, carried) {
+        const before = line.slice(0, justifyAt)
+        const list = line.slice(justifyAt + JUSTIFY_CODE.length).trim()
+        const plain = before + list
+        if (win.textSizeEx(carried + plain).width <= maxWidth) return plain
+
+        const label = before.replace(/\\>\s*$/, "")
+        let rowStart = carried + styleCodesIn(label)
+        const rows = []
+        let current = []
+        for (const item of list.split(JUSTIFY_SEPARATOR)) {
+            const candidate = current.concat(item).join(JUSTIFY_SEPARATOR)
+            if (
+                current.length &&
+                win.textSizeEx(rowStart + candidate).width > maxWidth
+            ) {
+                rows.push(current)
+                rowStart += styleCodesIn(current.join(JUSTIFY_SEPARATOR))
+                current = [item]
+            } else {
+                current.push(item)
+            }
+        }
+        rows.push(current)
+
+        const body = rows.map((row, i) =>
+            row.join(i < rows.length - 1 ? ",\\JG " : JUSTIFY_SEPARATOR)
+        )
+        return (label ? [label, ...body] : body).join("\n")
+    }
+
     /** Word-wraps every line of text. @param {Window_Base} win @param {string} text @param {number} maxWidth @returns {string} */
     function wrapTooltipText(win, text, maxWidth) {
+        let carried = ""
         return text
             .split("\n")
-            .map((line) => wrapLine(win, line, maxWidth))
+            .map((line) => {
+                const wrapped = wrapLine(win, line, maxWidth, carried)
+                carried += styleCodesIn(line)
+                return wrapped
+            })
             .join("\n")
     }
 
@@ -1880,19 +2108,22 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
      * sizes the window from the total, then draws each entry at its offset.
      * An entry with a face gets its portrait at the left, its text shifted
      * right of it and centered vertically against it.
-     * @param {Array<{state:RPG.State|null, buff:object|null, text:string, face?:{name:string,index:number}|null}>} rawEntries
+     * A fitWidth entry never widens the window: it's left out of the width
+     * calculation, then wrapped to whatever width the other entries (or the
+     * minimum width) settled on.
+     * @param {Array<{state:RPG.State|null, text:string, face?:{name:string,index:number}|null, fitWidth?:boolean}>} rawEntries
      */
     Window_StateTooltip.prototype.renderEntries = function (rawEntries) {
-        const entries = rawEntries.map((entry) => {
+        /** Wraps an entry to maxWidth (including its indent) and measures it. */
+        const measureEntry = (entry, maxWidth) => {
             const faceSize = entry.face ? TOOLTIP_PORTRAIT_SIZE : 0
             const indent = faceSize ? faceSize + TOOLTIP_PORTRAIT_GAP : 0
             const wrappedText = wrapTooltipText(
                 this,
                 entry.text,
-                this._maxTextWidth - indent
+                maxWidth - indent
             )
             const size = this.textSizeEx(wrappedText)
-            console.debug("Wrapped and final text", wrappedText)
             return {
                 ...entry,
                 text: wrappedText,
@@ -1901,21 +2132,39 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 width: size.width + indent,
                 height: Math.max(size.height, faceSize),
             }
-        })
+        }
+
+        // FIT-WIDTH ENTRIES -----
+        // Two passes: every normal entry is measured first (null holds a
+        // fitWidth entry's slot so order is kept), then the fitWidth ones
+        // are wrapped to the resulting w.
+        const sizedEntries = rawEntries.map((entry) =>
+            entry.fitWidth ? null : measureEntry(entry, this._maxTextWidth)
+        )
 
         // MIN WIDTH -----
         // _minTooltipWidthFinal is a whole-window width, so it's converted
         // back to a text width here. That one text width drives both the
         // window size and _rightAlignEdge below - widening only the window
         // would leave \> values stopping at the widest line's end instead.
+        // LEFT PADDING -----
+        // Text drawn at contents x 0 loses whatever its outline strokes left
+        // of that (bold's heavier outline visibly clips), so every entry -
+        // portrait, text, and _rightAlignEdge with it - is shifted right by
+        // TOOLTIP_LEFT_PADDING, and the window widened to match.
+        const left = TOOLTIP_LEFT_PADDING
+        const chrome = this.padding * 3 + left
         const w = Math.max(
-            ...entries.map((e) => e.width),
-            this._minTooltipWidthFinal - this.padding * 3,
+            ...sizedEntries.filter(Boolean).map((e) => e.width),
+            this._minTooltipWidthFinal - chrome,
             0
+        )
+        const entries = rawEntries.map(
+            (entry, i) => sizedEntries[i] || measureEntry(entry, w)
         )
         const h = entries.reduce((sum, e) => sum + e.height, 0)
 
-        this.width = w + this.padding * 3
+        this.width = w + chrome
         this.height = h + this.padding * 2
         if (!this.tooltipActive && !this._useOpenAnimation) {
             this.opacity = 0
@@ -1926,26 +2175,25 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
 
         this.createContents()
-        this._rightAlignEdge = w
+        this._rightAlignEdge = left + w
 
         this._typewriterQueue = []
         this._typewriterState = null
         let y = 0
         for (const entry of entries) {
-            if (entry.face) this.drawTooltipPortrait(entry.face, 0, y)
+            if (entry.face) this.drawTooltipPortrait(entry.face, left, y)
             const textY = y + Math.floor((entry.height - entry.textHeight) / 2)
+            const textX = left + entry.indent
             if (this._charsPerFrame > 0) {
                 this._typewriterQueue.push({
                     text: entry.text,
-                    x: entry.indent,
+                    x: textX,
                     y: textY,
                     state: entry.state || null,
-                    buff: entry.buff || null,
                 })
             } else {
                 this._state = entry.state || null
-                this._buff = entry.buff || null
-                this.drawTextEx(entry.text, entry.indent, textY, this.width)
+                this.drawTextEx(entry.text, textX, textY, this.width)
             }
             y += entry.height
         }
@@ -1985,7 +2233,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     Window_StateTooltip.prototype.startNextTypewriterEntry = function () {
         const entry = this._typewriterQueue.shift()
         this._state = entry.state
-        this._buff = entry.buff
         this.resetFontSettings()
         this._typewriterState = this.createTextState(
             entry.text,
@@ -2001,46 +2248,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     /**
-     * Builds and renders a battler's full tooltip (name header + states + buffs/debuffs).
+     * Builds and renders a battler's full tooltip (name header + states).
      * @param {Game_Battler} battler
      */
     Window_StateTooltip.prototype.setup = function (battler) {
         this._battler = battler
         this._item = null
 
-        this._buffTexts = []
-        for (let i = 0; i < this._battler.buffLength(); i++) {
-            let bd = { isBuffDebuff: true, param: i }
-            if (this._battler.isBuffAffected(i)) {
-                bd.text = WauLau.StateTooltips.buffTexts[i]
-                this._buffTexts.push(bd)
-            } else if (this._battler.isDebuffAffected(i)) {
-                bd.text = WauLau.StateTooltips.debuffTexts[i]
-                this._buffTexts.push(bd)
-            }
-        }
-
-        const stateEntries = this._battler.states().map((state) => {
-            const text = stateTooltipText(state, this._battler)
-            return {
+        // Hidden states are dropped before mapping; a state with no JSON
+        // entry still gets a name-only header.
+        const stateEntries = this._battler
+            .states()
+            .filter((state) => !isStateTooltipHidden(state))
+            .map((state) => ({
                 state,
-                buff: null,
                 text:
-                    text ||
+                    stateTooltipText(state, this._battler) ||
                     `\x1bST[1]${state.name}\x1bST[0]\x1bI[${state.iconIndex}]`,
-            }
-        })
-        const buffEntries = this._buffTexts.map((buff) => ({
-            state: null,
-            buff,
-            text: buff.text,
-        }))
+            }))
 
         // Battler's own name always leads the tooltip, with the actor's
         // face portrait beside it when they have one (enemies don't).
         const nameEntry = {
             state: null,
-            buff: null,
             text: `\x1bTI[1]${battler.name()}\x1bTI[0]`,
             face: null,
         }
@@ -2060,8 +2290,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 })
             }
         }
-
-        this.renderEntries([nameEntry].concat(stateEntries, buffEntries))
+        if (stateEntries.length > 0)
+            this.renderEntries([nameEntry].concat(stateEntries))
     }
 
     /**
@@ -2084,9 +2314,20 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     //                                DATA LOOKUPS                                //
     //============================================================================//
 
-    /**A map tying the 10 parameters to a fitting icon from System/IconSet.png.
-     * The key is the id of the parameter and the value is the id of the icon.
-     * */
+    /**
+     * Icon per element ID, in $dataSystem.elements order: (none), Crushing,
+     * Slashing, Piercing, Fire, Acid, Blast, Bullet, Armor Piercing, Flesh,
+     * Cold, Shock, Shadow.
+     * @type {number[]}
+     */
+    const elementIconIDs = [
+        0, 148, 149, 150, 11, 12, 47, 233, 297, 1087, 21, 23, 1183,
+    ]
+
+    /**
+     * Param ID (0-9: Max HP ... Luck, then Hit and Evasion) -> icon index.
+     * @type {Map<number, number>}
+     */
     const paramIconMap = new Map([
         [0, 515], //MaxHP - Heart
         [1, 23], //MaxSTM - Bolt
@@ -2099,9 +2340,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         [8, 40], //Hit Rate - Eye
         [9, 861], //Evasion - Target
     ])
-    /**A map tying the 8 trait parameters to a fitting icon from System/IconSet.png.
-     * The key is the id of the parameter and the value is the id of the icon.
-     * */
+    /**
+     * Param trait (TRAIT_PARAM) dataId 0-7 -> icon index.
+     * @type {Map<number, number>}
+     */
     const traitParamIconMap = new Map([
         [0, 515], //MaxHP - Heart
         [1, 23], //MaxSTM - Bolt
@@ -2112,37 +2354,39 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         [6, 86], //Agility - Motorbike
         [7, 580], //Luck - Dice
     ])
-    /**A map tying the 10 EXparameters to a fitting icon from System/IconSet.png.
-     * The key is the id of the EXparameter and the value is the id of the icon.
-     * */
+    /**
+     * Ex-param trait (TRAIT_XPARAM) dataId 0-9 -> icon index (0 = no icon).
+     * @type {Map<number, number>}
+     */
     const exParamIconMap = new Map([
         [0, 40], //Hit Rate - Eye
         [1, 861], //Evasion - Target
         [2, 275], //Crit - Laser
         [3, 1098], //Crit Evasion - Boot
-        [4, 0], //Magic Evasion - null
-        [5, 0], //Magic Deflect - null
+        [4, 0], //Magic Evasion
+        [5, 0], //Magic Reflection
         [6, 733], //Counter - Target
-        [7, 0], //Hp regen - null
-        [8, 0], //Stm regen - null
-        [9, 0], //Amm0 regen - null
+        [7, 0], //HP Regen
+        [8, 0], //STM Regen
+        [9, 0], //Ammo Regen
     ])
 
-    /** A map containing all the states who have multiple variations
-     * (eg. Bleed which has Bleed 1,2 & 3 or Spinal Control).
-     * The key is the display name for the whole group, and the value is an
-     * object mapping each variant's state id to its display-ready label, in
-     * the order the labels should be listed.
-     * */
+    /**
+     * States that come in numbered variants (e.g. Bleed 1/2/3), merged into
+     * one entry like "Bleed 1,2,3" (see mergeStateVariations).
+     * Key: the group's display name. Value: variant state ID -> its label,
+     * in the order the labels are listed.
+     * @type {Map<string, Object<number, string>>}
+     */
     const stateVariationsMap = new Map([
-        ["Bleed", { 11: "1", 12: "2", 13: "3" }], //Bleed
-        ["Disease", { 60: "1", 61: "2", 62: "3" }], //Disease
-        ["Swarm", { 170: "1", 171: "2", 172: "3" }], //Swarm
-        ["Philpower", { 230: "1", 231: "2", 232: "3" }], //Philpower
-        ["Scriv", { 305: "1", 306: "2", 307: "3", 308: "4", 309: "5" }], //Scriv
-        ["Sharpen", { 311: "1", 312: "2", 313: "3", 314: "4", 315: "5" }], //Sharpen
-        ["Spinal Control", { 275: "UL", 276: "UR", 277: "LL", 278: "LR" }], //Spinal Control
-        ["Petrifying", { 270: "1", 271: "2", 272: "3" }], //Petrifying
+        ["Bleed", { 11: "1", 12: "2", 13: "3" }],
+        ["Disease", { 60: "1", 61: "2", 62: "3" }],
+        ["Swarm", { 170: "1", 171: "2", 172: "3" }],
+        ["Philpower", { 230: "1", 231: "2", 232: "3" }],
+        ["Scriv", { 305: "1", 306: "2", 307: "3", 308: "4", 309: "5" }],
+        ["Sharpen", { 311: "1", 312: "2", 313: "3", 314: "4", 315: "5" }],
+        ["Spinal Control", { 275: "UL", 276: "UR", 277: "LL", 278: "LR" }],
+        ["Petrifying", { 270: "1", 271: "2", 272: "3" }],
     ])
 
     /**
@@ -2158,39 +2402,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     }
 
     /**
-     * Display a shortened name for a trait param (TRAIT.PARAM [21] dataId, fixed engine order:
-     * Max HP, Max MP, Attack, Defense, M.Attack, M.Defense, Agility, Luck).
+     * Short display name for a param, in engine order: Max HP, Max STM,
+     * Attack, Defense, Ballistics, Bull.Defense, Agility, Luck, then Hit and
+     * Evasion. Used for both item params and param traits (TRAIT_PARAM).
      * @param {number} paramId
-     * @returns {string|null}
-     */
-    function traitParamNameShort(paramId) {
-        switch (paramId) {
-            case 0:
-                return "MaxHP"
-            case 1:
-                return "MaxSTM"
-            case 2:
-                return "Atk"
-            case 3:
-                return "Def"
-            case 4:
-                return "Ball."
-            case 5:
-                return "B.Def"
-            case 6:
-                return "Agi"
-            case 7:
-                return "Luck"
-            default:
-                return null
-        }
-    }
-
-    /**
-     * Display a shortened name for a param (TERMS.PARAM dataId, fixed engine order:
-     * Hit, Eva, Cri, Cev, Mev, Mrf, Cnt, Hrg, Mrg, Trg). Hit/Evasion and the
-     * HP/MP/TP regen labels pull this project's renamed terms.
-     * @param {number} xparamId
      * @returns {string|null}
      */
     function paramNameShort(paramId) {
@@ -2220,14 +2435,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
     /**
-     * Display a shortened name for an xparam (TRAIT_XPARAM dataId, fixed engine order:
-     * Hit, Eva, Cri, Cev, Mev, Mrf, Cnt, Hrg, Mrg, Trg). Hit/Evasion and the
-     * HP/MP/TP regen labels pull this project's renamed terms.
+     * Short display name for an ex-param trait (TRAIT_XPARAM dataId, engine
+     * order: Hit, Eva, Cri, Cev, Mev, Mrf, Cnt, Hrg, Mrg, Trg).
      * @param {number} xparamId
      * @returns {string|null}
      */
     function xparamNameShort(xparamId) {
-        const terms = $dataSystem.terms
         switch (xparamId) {
             case 0:
                 return "Hit"
@@ -2254,9 +2467,10 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
-    /** Returns a ready to read string for the item scope for an item
-     * @param {number} scope - the scope to get a string for
-     * @returns {string}
+    /**
+     * Readable target description for an item/skill scope.
+     * @param {number} scope - RPG.UsableItem.scope
+     * @returns {string} "" for scope 0 (no target)
      */
     function itemScopeLine(scope) {
         switch (scope) {
@@ -2264,46 +2478,46 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 scope = ""
                 break
             case 1:
-                scope = "One Enemy"
+                scope = "\\BS[1]1\\BS[0] Enemy"
                 break
             case 2:
-                scope = "All Enemies"
+                scope = "\\BS[1]All\\BS[0] Enemies"
                 break
             case 3:
-                scope = "1 Random Enemy"
+                scope = "\\BS[1]1\\BS[0] Random Enemy"
                 break
             case 4:
-                scope = "2 Random Enemies"
+                scope = "\\BS[1]2\\BS[0] Random Enemies"
                 break
             case 5:
-                scope = "3 Random Enemies"
+                scope = "\\BS[1]3\\BS[0] Random Enemies"
                 break
             case 6:
-                scope = "4 Random Enemies"
+                scope = "\\BS[1]4\\BS[0] Random Enemies"
                 break
             case 7:
-                scope = "One Party Member"
+                scope = "\\BS[1]1\\BS[0] Party Member"
                 break
             case 8:
-                scope = "All Party Members"
+                scope = "\\BS[1]All\\BS[0] Party Members"
                 break
             case 9:
-                scope = "One Dead Party Member"
+                scope = "\\BS[1]1\\BS[0] Dead Party Member"
                 break
             case 10:
-                scope = "All Dead Party Members"
+                scope = "\\BS[1]All\\BS[0] Dead Party Members"
                 break
             case 11:
-                scope = "Player"
+                scope = "\\BS[1]User\\BS[0]"
                 break
             case 12:
-                scope = "One Party Member"
+                scope = "\\BS[1]1\\BS[0] Party Member"
                 break
             case 13:
-                scope = "All Party Members"
+                scope = "\\BS[1]All\\BS[0] Party Members"
                 break
             case 14:
-                scope = "All Party Members and Enemies"
+                scope = "\\BS[1]Everyone\\BS[0]"
                 break
         }
         return scope
@@ -2347,6 +2561,140 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return getTextFromLeadingBracketNote(item.description) || "Item"
     }
 
+    const skillTypeIdMap = [
+        {
+            "Video Game Skill": [
+                401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413,
+                414, 415, 416, 417, 418, 419, 420, 421,
+            ],
+        },
+        { "Aster Skill": [851, 852, 853, 854, 855, 856, 857] },
+        { "Audrey Skill": [611, 612, 614, 621] },
+        { "Machine Skill": [613, 615, 616, 617, 618, 619, 620, 622, 623] },
+        {
+            "Dan Skill": [
+                349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361,
+                362, 363, 364, 366, 367,
+            ],
+        },
+        { "Ernest Skill": [552, 553, 554] },
+        { "Ernest Song": [557, 558, 559, 560, 561] },
+        { "Hellen Skill": [72, 73, 74, 75, 76, 77, 78] },
+        { "Fallow Will Skill": [511, 512, 513, 514] },
+        { "Joel Skill": [132, 133, 134, 135, 136, 138, 139] },
+        { "Leigh Skill": [64, 65, 66, 67, 68, 69] },
+        { "Lyle Skill": [438, 439, 440, 441, 442, 443] },
+        { "Monty Skill": [142, 144, 145, 146, 147, 148, 149] },
+        { "Morton Skill": [159, 160, 161, 162] },
+        {
+            "Fidget Item": [
+                163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175,
+                176, 177,
+            ],
+        },
+        { "Papineau Skill": [111, 112, 113] },
+        { "Phillipe Skill": [652, 653, 654, 655, 656, 657] },
+        { "\\N[8] Skill": [54, 522, 523, 524, 525, 526, 527, 528, 529] },
+        { "Roaches Skill": [382, 383, 384, 385, 386, 387, 388, 389, 391, 393] },
+        {
+            "Shadow Skill": [
+                321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332, 333,
+                334, 335, 336, 337, 338, 339, 340, 341,
+            ],
+        },
+        {
+            "Sophie Skill": [
+                179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189,
+            ],
+        },
+        { "Xaria Skill": [151, 152, 153, 154, 155, 156, 157] },
+        {
+            "Weapon Skill": [
+                5, 22, 36, 87, 92, 105, 106, 191, 201, 202, 203, 204, 205, 206,
+                209, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 225, 226,
+                227, 228, 229, 230, 231, 234, 390, 467, 468, 469, 470, 471, 599,
+                637, 663, 664, 665, 666, 667, 681, 682, 683, 684, 685, 708, 709,
+                710, 716, 718, 719, 753, 757, 926, 963, 1035, 1036, 1037, 1038,
+                1039, 1040, 1041, 1042, 1043, 1044, 1045,
+            ],
+        },
+        {
+            "Equipment Skill": [
+                90, 110, 117, 436, 461, 492, 707, 736, 739, 740, 741, 742, 743,
+                744, 745, 873, 882, 887, 888,
+            ],
+        },
+        {
+            Reload: [
+                271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283,
+                284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 306, 307,
+            ],
+        },
+        { "Word Skill": [874, 875, 876, 877, 878, 879, 880] },
+    ]
+    /**
+     * Skill ID -> skill type label, flattened once from skillTypeIdMap so a
+     * hover is a single lookup. An ID listed under two labels keeps the
+     * later one.
+     * @type {Map<number, string>}
+     */
+    const skillTypeById = new Map(
+        skillTypeIdMap.flatMap((group) =>
+            Object.entries(group).flatMap(([label, ids]) =>
+                ids.map((id) => [id, label])
+            )
+        )
+    )
+    /**
+     * Stand-in "b" for tooltip damage formulas: an enemy with 0 in every
+     * stat and no states. Formulas call methods on b (isStateAffected,
+     * isActor, ...), so those exist too - any call missing here throws and
+     * the damage line is simply left out.
+     */
+    const dummyTarget = {
+        isStateAffected: () => false,
+        isActor: () => false,
+        isEnemy: () => true,
+        isAlive: () => true,
+        isDead: () => false,
+        hpRate: () => 1,
+        mpRate: () => 1,
+        roachSwarmRatio: () => 1,
+        vocabBonus: () => 1,
+        agi: 0,
+        atk: 0,
+        cev: 0,
+        cnt: 0,
+        cri: 0,
+        def: 0,
+        eva: 0,
+        exr: 0,
+        fdr: 0,
+        grd: 0,
+        hit: 0,
+        hp: 0,
+        hrg: 0,
+        level: 1,
+        luk: 0,
+        mat: 0,
+        mcr: 0,
+        mdf: 0,
+        mdr: 0,
+        mev: 0,
+        mhp: 0,
+        mmp: 0,
+        mp: 0,
+        mrf: 0,
+        mrg: 0,
+        pdr: 0,
+        pha: 0,
+        rec: 0,
+        tcr: 0,
+        tgr: 0,
+        tp: 0,
+        trg: 0,
+    }
+
     //============================================================================//
     //                   ITEM/WEAPON/ARMOR TOOLTIP CONTENT                        //
     //============================================================================//
@@ -2354,13 +2702,12 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     // -----------------------------STAT BLOCK & TRAITS----------------------------//
 
     /**
-     * Non-zero base params and xparams for a weapon/armor, using this
-     * project's renamed param labels from $dataSystem.terms.params.
+     * "Stats" section for a weapon/armor: non-zero base params, then the
+     * param/ex-param/sp-param, Attack Times+ and Action Times+ traits.
      * @param {RPG.Weapon|RPG.Armor} item
      * @returns {string[]|null}
      */
     function itemStatBlockLines(item) {
-        const paramNames = $dataSystem.terms.params
         const lines = []
 
         for (let i = 0; i < 8; i++) {
@@ -2379,7 +2726,23 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             let icon = ""
             let percent = 0
             let sign = ""
-            if (t.code === Game_BattlerBase.TRAIT_SPARAM) {
+            let unit = "%"
+            if (t.code === Game_BattlerBase.TRAIT_ATTACK_TIMES) {
+                // Flat extra hits, added to the wearer's attack skill only
+                // (see itemRepeats).
+                if (!t.value) continue
+                name = "Attacks"
+                icon = 627
+                percent = t.value
+                sign = percent > 0 ? "+" : ""
+                unit = ""
+            } else if (t.code === Game_BattlerBase.TRAIT_ACTION_PLUS) {
+                // Chance per turn of one extra action (Game_Battler.makeActionTimes).
+                if (!t.value) continue
+                name = "Extra Action"
+                icon = 141
+                percent = Math.round(t.value * 100)
+            } else if (t.code === Game_BattlerBase.TRAIT_SPARAM) {
                 switch (t.dataId) {
                     case 0:
                         name = "Target Rate"
@@ -2399,7 +2762,6 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
                 percent = Math.round(t.value * 100)
                 sign = percent > 0 ? "+" : ""
-                if (!name) return null
             } else if (t.code === Game_BattlerBase.TRAIT_PARAM) {
                 if (t.value === 0) continue
                 name = paramNameShort(t.dataId)
@@ -2417,7 +2779,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             } else continue
 
             lines.push(
-                `\\I[${icon}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}%\\BS[0]`
+                `\\I[${icon}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}${unit}\\BS[0]`
             )
         }
 
@@ -2490,6 +2852,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     /** Armor's equip slot label (e.g. "Body Gear"). @param {RPG.Armor} item @returns {string|null} */
     function armorSlotLine(item) {
         const name = $dataSystem.equipTypes[item.etypeId]
+        // Ranged gear is armor in this project - armor types 5 "Firearm",
+        // 6 "Two Handed Ranged", 8 "Slingshot".
         if (item.atypeId === 5) {
             return `\\ST[1]1H Ranged\\ST[0]`
         }
@@ -2499,7 +2863,16 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         if (item.atypeId === 8) {
             return `\\ST[1]1H Slingshot\\ST[0]`
         }
-        return name ? `\\ST[1]${name} Gear\\ST[0]` : null
+        switch (true) {
+            case name === "Accessory":
+                return `\\ST[1]Accessory\\ST[0]`
+            case name === "Jewelry":
+                return `\\ST[1]Jewelry\\ST[0]`
+            default:
+                return name ?
+                        `\\ST[1]${name} Gear\\ST[0]`
+                    :   `\\ST[1]Gear\\ST[0]`
+        }
     }
 
     /**
@@ -2547,70 +2920,95 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             ({ state, name }) => `\\I[${state.iconIndex}]\\BS[1]${name}\\BS[0]`
         )
         if (names.length === 0) return null
-        return [`\\LB[1]Immune against\\LB[0]`, names.join(", ")]
+        return [`\\LB[1]Immune against\\LB[0]`, `\\JU ${names.join(", ")}`]
     }
 
     /**
      * Incoming elemental damage adjustments (TRAIT_ELEMENT_RATE, value !== 1).
+     * Up to 3 get a right-aligned line each; more are listed as one \JU list.
      * @param {RPG.Armor} item
      * @returns {string[]|null}
      */
     function armorElementRateLines(item) {
-        const lines = []
-        for (const trait of item.traits.values()) {
-            let elementName = ""
-            let percent = ""
-            let sign = ""
-            let valid = false
-            let shouldAbandon = false
-            for (const [key, value] of Object.entries(trait)) {
-                if (shouldAbandon) break
-                switch (key) {
-                    case "code": {
-                        if (value === Game_BattlerBase.TRAIT_ELEMENT_RATE) {
-                            valid = true
-                        } else shouldAbandon = true
-                        break
-                    }
-                    case "dataId": {
-                        elementName = $dataSystem.elements[value]
-                        break
-                    }
-                    case "value": {
-                        if (value === 0) break
-                        percent = Math.round((value - 1) * 100)
-                        sign = percent > 0 ? "+" : ""
-                        break
-                    }
-                    default: {
-                    }
+        const adjustments = item.traits
+            .filter(
+                (t) =>
+                    t.code === Game_BattlerBase.TRAIT_ELEMENT_RATE &&
+                    t.value !== 1
+            )
+            .map((t) => {
+                const percent = Math.round((t.value - 1) * 100)
+                return {
+                    icon: elementIconIDs[t.dataId] || 0,
+                    name: `${$dataSystem.elements[t.dataId]} DMG`,
+                    value: `${percent > 0 ? "+" : ""}${percent}%`,
                 }
-            }
-            if (valid)
-                lines.push(
-                    `\\BS[1]\\IT[1]${elementName} DMG\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}%\\BS[0]`
-                )
+            })
+        if (adjustments.length === 0) return null
+        const header = `\\LB[1]Damage Adjust\\LB[0]`
+        if (adjustments.length > 3) {
+            const list = adjustments.map(
+                (a) => `\\I[${a.icon}]${a.name} \\BS[1]${a.value}\\BS[0]`
+            )
+            return [header, `\\JU ${list.join(", ")}`]
         }
-        if (lines.length === 0) return null
-        let combined = []
-        if (lines.length > 3) {
-            combined = [`\\LB[1]Damage Adjust\\LB[0]`, `${lines.join(`, `)}`]
-        } else {
-            combined = lines
-            combined.splice(0, 0, `\\LB[1]Damage Adjust\\LB[0]`)
-        }
-        return combined
+        return [header].concat(
+            adjustments.map(
+                (a) =>
+                    `\\BS[1]\\I[${a.icon}]\\IT[1]${a.name}\\IT[0]\\BS[0]\\>\\BS[1]${a.value}\\BS[0]`
+            )
+        )
     }
 
     //============================================================================//
-    //                                 ITEM DATA                                  //
+    //                             ITEM & SKILL DATA                              //
     //============================================================================//
 
     // ------------------------RECOVERY / STATE EFFECT LINES-----------------------//
-    // Consumable items describe their effects entirely through their effects
-    // list rather than a params array. Only recover HP/STM and add/remove
-    // state are covered; other effect types (gain TP, buffs, learn skill, ...)
-    // are left out.
+    // Items and skills describe their effects through their effects list.
+    // Recover HP/STM and add/remove state are shown here, weapon on-hit
+    // states by itemAttackStateLines; other effect types (gain TP, grow,
+    // learn skill, common event, ...) only show through the JSON extra lines.
+
+    /**
+     * Subtitle line naming an item's type: from its note tags (including the
+     * WD_Items tag's words) matched against ITEM_TYPE_RULES, else the
+     * description's leading [bracket] text.
+     * @param {RPG.Item} item
+     * @returns {string}
+     */
+    function grabLeadingBracketNoteForItem(item) {
+        let itemType = ""
+        const metaObj = item.meta
+        const contendersArr = [""]
+        // Meta keys are case-sensitive as typed in the note box, so WD_Items
+        // is found case-insensitively and read back through its real key.
+        let wdKey = null
+        for (const [key, value] of Object.entries(metaObj)) {
+            if (key.toUpperCase() === "WD_ITEMS") {
+                wdKey = key
+                continue
+            }
+            // A bare <tag> is meta value true, not a string.
+            if (typeof value !== "string") continue
+            const match = value.match(/[a-zA-Z]*/)
+            if (!match[0]) continue
+            contendersArr.push(match[0].toUpperCase())
+        }
+
+        if (wdKey && typeof metaObj[wdKey] === "string") {
+            for (const entry of metaObj[wdKey].split(" ")) {
+                if (entry !== "") contendersArr.push(entry.toUpperCase())
+            }
+        }
+
+        itemType = itemTypeLine(contendersArr, item)
+
+        const capitalizedItemType =
+            String(itemType).charAt(0).toUpperCase() +
+            String(itemType).slice(1).toLowerCase()
+        return `\\ST[1]${capitalizedItemType}\\ST[0]`
+    }
 
     /**
      * Formats a combined "rate% + flat" recovery/loss amount.
@@ -2629,25 +3027,16 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         if (label === "HP") {
             return [
                 `${verb}`,
-                `\\BS[1]\\C[20]${parts.join(" + ")}\\BS[0]\\C[21] ${label}\\C[${textColor}]`,
+                `\\BS[1]${parts.join(" + ")}\\BS[0]\\C[11] ${label}\\C[${textColor}]`,
             ]
         } else if (label === "STM") {
             return [
                 `${verb}`,
-                `\\BS[1]\\C[22]${parts.join(" + ")}\\BS[0]\\C[23] ${label}\\C[${textColor}]`,
+                `\\BS[1]${parts.join(" + ")}\\BS[0]\\C[23] ${label}\\C[${textColor}]`,
             ]
         } else {
             return [`${verb}`, `\\BS[1]${parts.join(" + ")}\\BS[0] ${label}`]
         }
-    }
-    function itemDamageLines(item) {
-        const itemDmg = item.damage
-        if (!itemDmg.type || itemDmg.type === 0 || itemDmg.type > 6) return null
-        const elementDmg = $dataSystem.elements[itemDmg.elementId]
-        const dmg = itemDmg.formula.match(/^\S*/)
-        if (elementDmg === null || elementDmg === 0 || dmg === "") return null
-        let scope = itemScopeLine(item.scope)
-        return `Deals \\BS[1]${dmg}\\BS[0] ${elementDmg} DMG to \\BS[1]${scope}\\BS[0]`
     }
 
     /** Combined "Recover:"/"Lose:" lines for an item's HP/STM effects. @param {RPG.Item} item @returns {string[]} */
@@ -2671,8 +3060,8 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
 
         const basic = $dataSystem.terms.basic
-        const recoverLines = []
-        const loseLines = []
+        let recoverLines = []
+        let loseLines = []
         if (hasHp) {
             const [verb, line] = recoverAmountLine(hpRate, hpFlat, basic[3])
             if (verb === "Lose") loseLines.push(line)
@@ -2683,53 +3072,101 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             if (verb === "Lose") loseLines.push(line)
             else recoverLines.push(line)
         }
-        if (loseLines.length !== 0)
-            loseLines.splice(0, 0, `\\LB[1]Lose:\\LB[0]`)
-        if (recoverLines.length !== 0)
-            recoverLines.splice(0, 0, `\\LB[1]Recover:\\LB[0]`)
+        if (loseLines.length !== 0) {
+            if (loseLines.length <= 2) {
+                const oneliner = [
+                    `\\LB[1]Lose:\\LB[0]\\>${loseLines.join(", ")}`,
+                ]
+                loseLines = oneliner
+            } else {
+                loseLines.splice(0, 0, `\\LB[1]Lose:\\LB[0]`)
+            }
+        }
+        if (recoverLines.length !== 0) {
+            if (recoverLines.length <= 2) {
+                const oneliner = [
+                    `\\LB[1]Recover:\\LB[0]\\>${recoverLines.join(", ")}`,
+                ]
+                recoverLines = oneliner
+            } else {
+                recoverLines.splice(0, 0, `\\LB[1]Recover:\\LB[0]`)
+            }
+        }
 
-        if (recoverLines.length === 0) return loseLines
-        if (loseLines.length === 0) return recoverLines
-
-        const combined = recoverLines.concat(loseLines)
-        if (combined.length === 0) return []
-
-        return combined
+        return recoverLines.concat(loseLines)
     }
 
     /**
-     * Groups add/remove-state effects by chance into one comma-joined line
-     * per verb (e.g. "Cures: A, B, C"), skipping duplicate effects on the
-     * same state by keeping only the highest chance.
+     * One "Verb: A, B, C" \JU list line for a set of states, or - when
+     * several have a chance below 100% - a header plus one right-aligned
+     * "State ... 50%" line each. Variant states are merged (Bleed 1,2,3) and
+     * icon-less (internal) states are skipped.
      * @param {string} verb - e.g. "Inflicts" / "Cures"
      * @param {Map<number, number>} stateChances - stateId -> chance (0-1)
      * @returns {string[]}
      */
     function groupedStateLines(verb, stateChances) {
+        let hasChances = false
         const combined = []
+        const expanded = []
         const entries = [...stateChances].map(([stateId, chance]) => ({
             stateId,
             value: Math.round(chance * 100),
         }))
-        for (const { state, name, value } of mergeStateVariations(entries)) {
+        // mergeAll, same as weaponAttackStateLines: variants with different
+        // chances still merge, into e.g. "50/40% Bleed 1,2".
+        const mergedEntries = mergeStateVariations(entries, { mergeAll: true })
+        for (const { state, name, values } of mergedEntries) {
             // iconIndex 0 marks a purely internal/bookkeeping state - skip it,
             // same convention Game_BattlerBase.allIcons() uses.
             if (state.iconIndex === 0) continue
-            const prefix = value >= 100 ? "" : `\\BS[1]${value}%\\BS[0] `
-            combined.push(`\\I[${state.iconIndex}]${prefix}${name}`)
+            const prefix =
+                values.every((v) => v >= 100) ? "" : (
+                    `${formatVariantValues(values)}%`
+                )
+            if (prefix !== "") {
+                hasChances = true
+                combined.push(
+                    `\\I[${state.iconIndex}]${name}\\BS[1](${prefix})\\BS[0]`
+                )
+                expanded.push(
+                    `\\I[${state.iconIndex}]${name}\\>\\BS[1]${prefix}\\BS[0]`
+                )
+            } else {
+                combined.push(`\\I[${state.iconIndex}]${name}`)
+                expanded.push(
+                    `\\I[${state.iconIndex}]${name}\\>\\BS[1]100%\\BS[0]`
+                )
+            }
         }
         if (combined.length === 0) return []
-        combined.splice(0, 0, `\\LB[1]${verb}:\\LB[0]`)
-        return combined
+        const lines = []
+        if (hasChances && combined.length > 1) {
+            lines.push(`\\LB[1]${verb}:\\LB[0]`, ...expanded)
+        } else {
+            lines.push(`\\LB[1]${verb}:\\LB[0]\\>\\JU ${combined.join(", ")}`)
+        }
+
+        return lines
     }
 
-    /** Add/remove-state effect lines for an item. @param {RPG.Item} item @returns {string[]} */
+    /**
+     * "Grants:" (the <ApplyState:n> note tag), "Cures:" and "Inflicts:"
+     * lines for an item/skill. Duplicate effects on the same state keep only
+     * the highest chance.
+     * @param {RPG.UsableItem} item
+     * @returns {string[]}
+     */
     function itemStateEffectLines(item) {
         const addChances = new Map()
         const removeChances = new Map()
+        const grantSelf = new Map()
+        const applyStateMatch = /<ApplyState:(\d+)>/.exec(item.note)
+        if (applyStateMatch) grantSelf.set(parseInt(applyStateMatch[1]), 1)
         for (const effect of item.effects) {
             // dataId 0 on EFFECT_ADD_STATE means "whatever the user's weapon
-            // inflicts on attack" rather than a specific state - skipped.
+            // inflicts on attack" rather than a specific state - shown by
+            // itemAttackStateLines instead.
             if (
                 effect.code === Game_Action.EFFECT_ADD_STATE &&
                 effect.dataId > 0
@@ -2748,21 +3185,213 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 )
             }
         }
-        // groupedStateLines() returns [header, ...stateNames] - keep the header
-        // on its own line and comma-join the state names after it.
-        const inflictions = groupedStateLines("Inflicts", addChances)
-        const cures = groupedStateLines("Cures", removeChances)
-        const lines = []
-        if (inflictions.length > 0) {
-            lines.push(inflictions[0], `${inflictions.slice(1).join(", ")}`)
-        }
-        if (cures.length > 0) {
-            lines.push(cures[0], `${cures.slice(1).join(", ")}`)
-        }
-        return lines
+
+        return groupedStateLines("Grants", grantSelf)
+            .concat(groupedStateLines("Cures", removeChances))
+            .concat(groupedStateLines("Inflicts", addChances))
     }
 
-    // ---------------------------------GLOBAL---------------------------------- //
+    /**
+     * The database object that makes a skill an actor's attack skill: the
+     * first state/actor/class/equip with an Attack Skill trait for it (e.g. a
+     * rifle for Buttstroke, Grinning Beast for Claw). Plain Attack has no
+     * trait, so it falls back to the main weapon.
+     * @param {Game_Actor} user
+     * @param {number} skillId - the user's attackSkillId()
+     * @returns {RPG.BaseItem|RPG.State|RPG.Class|null} null when unarmed
+     */
+    function attackSkillSource(user, skillId) {
+        const granter = user
+            .traitObjects()
+            .find((obj) =>
+                obj.traits.some(
+                    (t) =>
+                        t.code === Game_BattlerBase.TRAIT_ATTACK_SKILL &&
+                        t.dataId === skillId
+                )
+            )
+        if (granter) return granter
+        if (user.hasNoWeapons())
+            return { name: "Unarmed Attack", iconIndex: 531 }
+        return (user.weapons && user.weapons()[0]) || null
+    }
+
+    /**
+     * Subtitle label for a skill: the granting weapon/gear/state for the
+     * user's attack skill, "Firearm Skill" for ammo-using skills, else its
+     * skillTypeById entry, else its database skill type.
+     * @param {RPG.Skill} item
+     * @param {Scene_Base|null} scene - used to find the acting actor
+     * @returns {{text: string, isAttackSkill: boolean, icon: number}}
+     */
+    function getSkillInfo(item, scene) {
+        if (/<ammoUse/.test(item.note)) {
+            return { text: "Firearm Skill", isAttackSkill: false, icon: 0 }
+        }
+        // ATTACK SKILL -----
+        // Same test as Game_Action.isAttack, so every source counts:
+        // weapon/ranged-gear traits, states that force one, the class.
+        const user = formulaUserFor(scene)
+        if (user && item === $dataSkills[user.attackSkillId()]) {
+            const source = attackSkillSource(user, item.id)
+            if (source) {
+                return {
+                    text: source.name,
+                    icon: source.iconIndex || 0,
+                    isAttackSkill: true,
+                }
+            }
+        }
+        const mapped = skillTypeById.get(item.id)
+        if (mapped) return { text: mapped, isAttackSkill: false, icon: 0 }
+        return {
+            text:
+                item.stypeId === 0 ?
+                    "Skill"
+                :   $dataSystem.skillTypes[item.stypeId],
+            isAttackSkill: false,
+            icon: 0,
+        }
+    }
+
+    /**
+     * Target + damage lines for a skill/item's damage formula ("Target 1
+     * Enemy making One Attack to it" / "Attack Deals X DMG"), or "Restores X
+     * HP" for HP/STM recover types. Empty when there's no formula or it can't
+     * be evaluated outside a real action.
+     * @param {RPG.UsableItem} item
+     * @param {Scene_Base|null} scene - used to find the acting actor
+     * @returns {string[]}
+     */
+    function itemDamageLine(item, scene) {
+        const type = item.damage.type
+        if (!type || !item.damage.formula) return []
+
+        const dmg = evalDamageFormula(item, scene)
+        if (dmg === 0) {
+            const target = itemTargetLine(item)
+            return target === "" ? [] : `\\LB[1]Target:\\LB[0]\\>${target}`
+        }
+
+        // elementId -1 is "Normal Attack" (the weapon's element), 0 is none.
+        const elementId = item.damage.elementId
+        const elementDmg =
+            elementId > 0 && $dataSystem.elements[elementId] ?
+                ` ${$dataSystem.elements[elementId]}`
+            :   ""
+        const dmgSpreadStr = getVarianceSpread(dmg, item.damage.variance)
+
+        // RECOVER TYPES -----
+        // 3 = HP recover, 4 = MP (STM) recover.
+        if (type === 3 || type === 4) {
+            const label = $dataSystem.terms.basic[type === 3 ? 3 : 5]
+            return [`Restores \\BS[1]${dmgSpreadStr}\\BS[0] ${label}`]
+        }
+
+        // 2 = MP damage, 6 = MP drain.
+        const resource =
+            type === 2 || type === 6 ? ` ${$dataSystem.terms.basic[5]}` : ""
+        const repeats = itemRepeats(item, scene)
+        const target = itemTargetLine(item)
+        const targetStr = target ? `Target ${target}` : ""
+        const lead = target ? `${targetStr} making` : "Making"
+        const attacks =
+            repeats <= 1 ?
+                "\\BS[1]One Attack\\BS[0]"
+            :   `\\BS[1]${repeats} Attacks\\BS[0]`
+        const dealing = `\\BSD[1]${dmgSpreadStr}\\BSD[0]\\BS[1]${elementDmg}${resource}\\BS[0] DMG`
+        if (isSingleTargetScope(item.scope)) {
+            return [
+                `${lead} ${attacks} to it`,
+                `${repeats <= 1 ? "Attack Deals" : "Each Attack Deals"} ${dealing}`,
+            ]
+        }
+        return [`${lead} ${attacks} to each`, `Each Attack Deals ${dealing}`]
+    }
+
+    /**
+     * Attacks per use, counted like {@link Game_Action.prototype.numRepeats}:
+     * the item's own Repeat, plus the user's Attack Times+ traits (weapons,
+     * armor, states) when the item is that user's attack skill.
+     * @param {RPG.UsableItem} item
+     * @param {Scene_Base|null} scene - used to find the acting actor
+     * @returns {number}
+     */
+    function itemRepeats(item, scene) {
+        let repeats = item.repeats
+        const user = formulaUserFor(scene)
+        if (
+            user &&
+            DataManager.isSkill(item) &&
+            item === $dataSkills[user.attackSkillId()]
+        ) {
+            repeats += user.attackTimesAdd()
+        }
+        return Math.floor(repeats)
+    }
+
+    /** "Target ..." text for the damage line, or "" for scope 0 (no target). @param {RPG.UsableItem} item @returns {string} */
+    function itemTargetLine(item) {
+        const scopeLine = itemScopeLine(item.scope)
+        return scopeLine ? `${scopeLine}` : ""
+    }
+
+    /**
+     * The actor a tooltip's damage formula is evaluated for: the actor
+     * choosing a command in battle, else the menu scene's actor, else the
+     * party leader.
+     * @param {Scene_Base|null} scene
+     * @returns {Game_Actor|null}
+     */
+    function formulaUserFor(scene) {
+        if (scene instanceof Scene_Battle) return BattleManager.actor()
+        if (scene && scene._actor) return scene._actor
+        return $gameParty.leader() || null
+    }
+
+    /**
+     * Evaluates an item's damage formula like
+     * {@link Game_Action.prototype.evalDamageFormula}, against a 0-stat dummy
+     * target. Recover types (3/4) come back positive - callers word them as
+     * healing.
+     * @param {RPG.UsableItem} item
+     * @param {Scene_Base|null} [scene=null] - used to find the user (see formulaUserFor)
+     * @returns {number} the damage, or 0 if it can't be evaluated
+     */
+    function evalDamageFormula(item, scene = null) {
+        const user = formulaUserFor(scene)
+        if (!user) return 0
+        try {
+            // SANDBOXED USER -----
+            // Formulas are live code (e.g. Mosquito Stab calls a.gainHp), so
+            // eval only ever sees a throwaway copy of the real actor.
+            const a = JsonEx.makeDeepCopy(user) // eslint-disable-line no-unused-vars
+            const b = dummyTarget // eslint-disable-line no-unused-vars
+            const v = $gameVariables._data // eslint-disable-line no-unused-vars
+            const value = Math.max(eval(item.damage.formula), 0)
+            return isNaN(value) ? 0 : Math.floor(value)
+        } catch (e) {
+            return 0
+        }
+    }
+
+    /**
+     * Damage range after variance, as "min~max" (same amplitude as
+     * {@link Game_Action.prototype.applyVariance}), or just the value when
+     * variance is 0.
+     * @param {number} damage
+     * @param {number} variance - percent
+     * @returns {string}
+     */
+    function getVarianceSpread(damage, variance) {
+        const amp = Math.floor(Math.max((Math.abs(damage) * variance) / 100, 0))
+        if (amp === 0) return `${Math.floor(damage)}`
+        const dmgMin = damage - amp
+        const dmgMax = damage + amp
+        return `${Math.floor(dmgMin)}~${Math.floor(dmgMax)}`
+    }
+
+    // ---------------------------STATE VARIANT MERGING----------------------------//
     /**
      * Merges variant states (see stateVariationsMap) into one entry named
      * e.g. "Bleed 1,2,3". By default only variants sharing the same value
@@ -2831,101 +3460,270 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return new Set(values).size === 1 ? String(values[0]) : values.join("/")
     }
 
-    // -------------------------------FLAVOR TEXT----------------------------------//
+    //============================================================================//
+    //                     NOTETAG & CUSTOM MECHANIC LINES                        //
+    //============================================================================//
+    // Lines for mechanics that live in notetags read by other plugins
+    // (bunchastuff.js, HPConsumeSkill.js) or in effects/traits the stock
+    // builders above don't cover.
 
-    // Strips a hand-written leading "[Crush]"-style bracket from a weapon/item
-    // description, since weaponDamageLine() now derives that from trait data.
-    /** @param {string} text @returns {string} */
-    function stripLeadingBracketNote(text) {
-        return text.replace(/^\s*\[[^\]]*\]\s*/, "")
+    /**
+     * A numeric notetag value.
+     * @param {RPG.BaseItem} item
+     * @param {string} key - meta key, case-sensitive as typed in the note box
+     * @returns {number|null} null when the tag is missing, bare, or not a number
+     */
+    function metaNumber(item, key) {
+        const raw = item.meta && item.meta[key]
+        if (typeof raw !== "string") return null
+        const value = parseFloat(raw)
+        return Number.isNaN(value) ? null : value
     }
-    // Grabs a hand-written leading "[Crush]"-style bracket from a weapon/item
-    // description, and returns its contents without the brackets
-    /** @param {string} text @returns {string} */
+
+    /** True for scopes that hit exactly one battler (one random enemy included). @param {number} scope @returns {boolean} */
+    function isSingleTargetScope(scope) {
+        return [1, 3, 7, 9, 11, 12].includes(scope)
+    }
+
+    // -------------------------------WEAPON BREAKING------------------------------//
+    // durabilityCheck() in bunchastuff.js rolls, per hit, roughly
+    // fragile% x skill breakRate x crit x warm-up x luck, gated by a
+    // difficulty threshold. Only the weapon's base chance and the skill's
+    // multiplier are shown - safe hits, break results and the rest stay hidden.
+
+    /** Base break chance from a weapon's <fragile:n> tag. @param {RPG.Weapon} item @returns {string[]} */
+    function weaponBreakChanceLine(item) {
+        const fragile = metaNumber(item, "fragile")
+        if (!fragile) return []
+        return [`\\LB[1]Break Chance:\\LB[0]\\>\\BS[1]${fragile}%\\BS[0]`]
+    }
+
+    /**
+     * A skill's <breakRate:n> multiplier on the weapon's break chance.
+     * Hidden at 1x (plain Attack), "None" at 0.
+     * @param {RPG.Skill} item
+     * @returns {string[]}
+     */
+    function skillBreakRateLine(item) {
+        const rate = metaNumber(item, "breakRate")
+        if (rate === null || rate === 1) return []
+        const value = rate === 0 ? "None" : `${rate}x`
+        return [`\\LB[1]Break Multiplier:\\LB[0]\\>\\BS[1]${value}\\BS[0]`]
+    }
+
+    // ------------------------------EQUIPMENT SKILLS------------------------------//
+
+    /** Skills a weapon/armor teaches while equipped (TRAIT_SKILL_ADD). @param {RPG.EquipItem} item @returns {string[]} */
+    function equipGrantedSkillLines(item) {
+        const seen = new Set()
+        const names = []
+        for (const t of item.traits) {
+            if (t.code !== Game_BattlerBase.TRAIT_SKILL_ADD) continue
+            if (seen.has(t.dataId)) continue
+            seen.add(t.dataId)
+            const skill = $dataSkills[t.dataId]
+            if (!skill || !skill.name) continue
+            // \I[0] still reserves an icon's width, so iconless skills skip
+            // it - as do skills on the generic icon 77.
+            const icon =
+                skill.iconIndex && skill.iconIndex !== 77 ?
+                    `\\I[${skill.iconIndex}]`
+                :   ""
+            names.push(`${icon}${skill.name}`)
+        }
+        if (names.length === 0) return []
+        return [`\\LB[1]Skills:\\LB[0]`, `\\JU ${names.join(", ")}`]
+    }
+
+    // --------------------------------SKILL COSTS---------------------------------//
+
+    /**
+     * HP cost from HPConsumeSkill's tags: <hp_cost:n> flat plus
+     * <hp_ratio:r> of the user's *current* HP (Game_BattlerBase.skillHpCost).
+     * @param {RPG.Skill} item
+     * @returns {string|null}
+     */
+    function skillHpCostPart(item) {
+        const flat = metaNumber(item, "hp_cost") || 0
+        const ratio = metaNumber(item, "hp_ratio") || 0
+        if (!flat && !ratio) return null
+        const parts = []
+        if (flat) parts.push(`${flat}`)
+        if (ratio) parts.push(`${Math.round(ratio * 100)}% Current`)
+        return `\\BS[1]\\C[20]${parts.join(" + ")}\\BS[0]\\C[21] ${$dataSystem.terms.basic[3]}\\C[${textColor}]`
+    }
+
+    /**
+     * Ammo and item costs the skill list doesn't draw: <ammoUse:n> (gun
+     * ammo, see hasAmmoForShoot) and <UseItemId:n>. UseItemId is spent in
+     * Game_Action.apply, which runs once per target.
+     * @param {RPG.Skill} item
+     * @returns {string[]}
+     */
+    function skillCostLines(item) {
+        const parts = []
+        const hpPart = skillHpCostPart(item)
+        if (hpPart) parts.push(hpPart)
+        const ammo = metaNumber(item, "ammoUse")
+        if (ammo) parts.push(`\\BS[1]${ammo}\\BS[0] Ammo`)
+        const usedItem = $dataItems[metaNumber(item, "UseItemId")]
+        if (usedItem) {
+            const amount =
+                isSingleTargetScope(item.scope) ? "1" : "1 per Target"
+            parts.push(
+                `\\BS[1]${amount}\\BS[0] \\I[${usedItem.iconIndex}]${usedItem.name}`
+            )
+        }
+        if (parts.length === 0) return []
+        if (parts.length === 1) {
+            return [`\\LB[1]Costs:\\LB[0]\\>${parts[0]}`]
+        }
+        return [`\\LB[1]Costs:\\LB[0]`, parts.join(", ")]
+    }
+
+    // -------------------------------SKILL EXTRAS---------------------------------//
+
+    /** Per-hit success chance when below 100%. @param {RPG.UsableItem} item @returns {string[]} */
+    function itemSuccessRateLine(item) {
+        if (item.successRate >= 100) return []
+        return [`\\LB[1]Success:\\LB[0]\\>\\BS[1]${item.successRate}%\\BS[0]`]
+    }
+
+    /** Dan's stream viewer change from <viewerChange:n> (bunchastuff.js, var 568). @param {RPG.Skill} item @returns {string[]} */
+    function skillViewerChangeLine(item) {
+        const change = metaNumber(item, "viewerChange")
+        if (!change) return []
+        const sign = change > 0 ? "+" : ""
+        return [`\\LB[1]Viewers:\\LB[0]\\>\\BS[1]${sign}${change}\\BS[0]`]
+    }
+
+    /**
+     * On-hit states for an "Add State: Normal Attack" effect (dataId 0),
+     * resolved against the user's current attack states the same way
+     * Game_Action.itemEffectAddAttackState does: effect chance x
+     * attackStatesRate. Nothing is shown when the user inflicts nothing.
+     * @param {RPG.UsableItem} item
+     * @param {Scene_Base|null} scene - used to find the acting actor
+     * @returns {string[]}
+     */
+    function itemAttackStateLines(item, scene) {
+        const effect = item.effects.find(
+            (e) => e.code === Game_Action.EFFECT_ADD_STATE && e.dataId === 0
+        )
+        if (!effect) return []
+        const user = formulaUserFor(scene)
+        if (!user) return []
+        const inflictions = user
+            .attackStates()
+            .filter((id) => $dataStates[id] && $dataStates[id].iconIndex)
+            .map((id) => ({
+                stateId: id,
+                value: Math.round(
+                    effect.value1 * user.attackStatesRate(id) * 100
+                ),
+            }))
+            .filter((entry) => entry.value > 0)
+        const lines = mergeStateVariations(inflictions, { mergeAll: true }).map(
+            ({ state, name, values }) =>
+                `\\I[${state.iconIndex}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${formatVariantValues(values)}%\\BS[0]`
+        )
+        if (lines.length === 0) return []
+        lines.splice(0, 0, `\\LB[1]On Hit:\\LB[0]`)
+        return lines
+    }
+
+    // ------------------------------DESCRIPTION & JSON----------------------------//
+
+    /**
+     * The contents of a description's leading "[Snack]"-style bracket.
+     * @param {string} text
+     * @returns {string} "" when there's no leading bracket
+     */
     function getTextFromLeadingBracketNote(text) {
         const match = text.match(/(\[(\w*)\].*|.*)/)
         return match[2] ? match[2] : ""
     }
 
-    /** Grab the first WD_Itemsobject from the items 'note',
-     * or try and grab an item type from its bracket in its description.
-     * @param {RPG.Item} item The item database object
-     * @returns {string} The item type */
-    function grabLeadingBracketNoteForItem(item) {
-        let itemType = ""
-        const metaObj = item.meta
-        const contendersArr = [""]
-        if (Object.values(metaObj).length > 0) {
-            /** The keys of the Meta object IN UPPERCASE for string searches, remember to use uppercase then. @type String[]*/
-            const metaKeysCaseFormat = Object.keys(metaObj).map((k) =>
-                k.toUpperCase()
-            )
-
-            for (const [key, value] of Object.entries(metaObj)) {
-                if (key.toUpperCase() === "WD_ITEMS") {
-                    continue
-                }
-                const match = value.match(/[a-zA-Z]*/)
-                if (!match[0]) continue
-                contendersArr.push(match[0].toUpperCase())
-            }
-
-            if (metaKeysCaseFormat.includes("WD_ITEMS")) {
-                const WD_ItemStr = metaObj.WD_Items
-                const WD_ItemArr = WD_ItemStr.split(" ")
-                    .filter((e) => e !== "")
-                    .map((e) => contendersArr.push(e.toUpperCase()))
-            }
-        }
-
-        itemType = itemTypeLine(contendersArr, item)
-
-        const capitalizedItemType =
-            String(itemType).charAt(0).toUpperCase() +
-            String(itemType).slice(1).toLowerCase()
-        return `\\ST[1]${capitalizedItemType}\\ST[0]`
-    }
-
     /**
-     * Flavor text for an item's tooltip: a WauLau_ItemTooltips.json entry if
-     * present, else the item's own database description.
-     * @param {'weapons'|'armors'|'items'} kind
-     * @param {RPG.Item} item
-     * @returns {string}
+     * Hand-written extra lines for an entry from data/WauLau_TooltipData.json
+     * (every key except "_"-prefixed ones, in order; arrays become one line
+     * per element).
+     * @param {'weapons'|'armors'|'items'|'skills'} kind
+     * @param {RPG.BaseItem} item
+     * @returns {string[]}
      */
-    function itemTooltipFlavorText(kind, item) {
+    function getAdditionalJsonItemProps(kind, item) {
         const entry =
-            $dataItemTooltips &&
-            $dataItemTooltips[kind] &&
-            $dataItemTooltips[kind][item.id]
-        if (entry && entry.text) {
-            return Array.isArray(entry.text) ? entry.text.join(" ") : entry.text
-        }
-        const description = item.description || ""
-        return kind === "weapons" || kind === "items" ?
-                stripLeadingBracketNote(description)
-            :   description
+            $tooltipData && $tooltipData[kind] && $tooltipData[kind][item.id]
+        if (!entry) return []
+        // Keys starting with "_" (e.g. "_name") are editor-only labels.
+        return Object.entries(entry)
+            .filter(([key]) => !key.startsWith("_"))
+            .map(([, value]) =>
+                Array.isArray(value) ? value.join("\n") : value
+            )
     }
 
     //============================================================================//
     //                        TOOLTIP ENTRY AND PROCESSING                        //
     //============================================================================//
 
-    /** Full tooltip text for a weapon/armor/item row. @param {RPG.BaseItem} item @returns {string|null} */
-    function itemTooltipEntryText(item, type) {
-        const kind =
+    /**
+     * Database category of a tooltip item - also its section key in
+     * WauLau_TooltipData.json.
+     * @param {RPG.BaseItem} item
+     * @returns {'weapons'|'armors'|'items'|'skills'|null}
+     */
+    function itemTooltipKind(item) {
+        return (
             DataManager.isWeapon(item) ? "weapons"
             : DataManager.isArmor(item) ? "armors"
             : DataManager.isItem(item) ? "items"
+            : DataManager.isSkill(item) ? "skills"
             : null
-        if (!kind) return null
+        )
+    }
 
+    /** \I[n] for a real icon, "" for icon 0 (\I[0] would still reserve an icon's width). @param {number} iconIndex @returns {string} */
+    function iconCode(iconIndex) {
+        return iconIndex ? `\\I[${iconIndex}]` : ""
+    }
+
+    /**
+     * Capitalizes the first letter of every word, including words right
+     * after an escape code's "]" (e.g. "\BS[0]enemy").
+     * @param {string} text
+     * @returns {string}
+     */
+    function capitalizeWords(text) {
+        return text.replace(
+            /(^\w|\s\w|\]\w)(\S*)/g,
+            (_, m1, m2) => m1.toUpperCase() + m2
+        )
+    }
+
+    /**
+     * Tooltip text for a weapon/armor/item/skill: title line, then every
+     * stat/effect line for its kind, then its JSON extra lines.
+     * @param {RPG.BaseItem} item
+     * @param {string} type - "Tooltip", or "Shop" for the dialogue shop
+     *   window (no title line; "" when there's nothing beyond the subtitle)
+     * @param {Scene_Base|null} [scene=null] - used to find the acting actor
+     * @returns {string|null} null for anything that isn't a database item/skill
+     */
+    function itemTooltipEntryText(item, type, scene = null) {
+        const kind = itemTooltipKind(item)
+        if (!kind) return null
+        let skillInfo = null
         let topLines
         if (kind === "weapons") {
             const damageLine = weaponDamageLine(item)
             topLines = (damageLine ? [damageLine] : [])
                 .concat(itemStatBlockLines(item))
                 .concat(weaponAttackStateLines(item))
+                .concat(weaponBreakChanceLine(item))
+                .concat(equipGrantedSkillLines(item))
+                .concat(getAdditionalJsonItemProps(kind, item))
         } else if (kind === "armors") {
             const slotLine = armorSlotLine(item)
             const resistLine = armorStateResistLine(item)
@@ -2934,62 +3732,73 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 .concat(armorStateRateLines(item))
                 .concat(armorElementRateLines(item))
                 .concat(resistLine || [])
+                .concat(equipGrantedSkillLines(item))
+                .concat(getAdditionalJsonItemProps(kind, item))
         } else if (kind === "items") {
             topLines = [grabLeadingBracketNoteForItem(item)]
-                .concat(itemDamageLines(item))
+                .concat(itemDamageLine(item, scene))
                 .concat(itemRecoverLines(item))
                 .concat(itemStateEffectLines(item))
+                .concat(itemSuccessRateLine(item))
+                .concat(getAdditionalJsonItemProps(kind, item))
         } else {
-            topLines = itemStateEffectLines(item).concat(itemRecoverLines(item))
+            skillInfo = getSkillInfo(item, scene)
+            topLines = [
+                `\\ST[1]${skillInfo.text}\\ST[0]${iconCode(skillInfo.icon)}`,
+            ]
+                .concat(itemDamageLine(item, scene))
+                .concat(skillCostLines(item))
+                .concat(itemRecoverLines(item))
+                .concat(itemStateEffectLines(item))
+                .concat(itemAttackStateLines(item, scene))
+                .concat(itemSuccessRateLine(item))
+                .concat(skillViewerChangeLine(item))
+                .concat(skillBreakRateLine(item))
+                .concat(getAdditionalJsonItemProps(kind, item))
         }
-        const statLines = topLines.filter((word) => word !== null)
+        const statLines = topLines.filter((line) => line !== null)
 
         if (type.toUpperCase() === "SHOP") {
-            const text = statLines.length > 1 ? `${statLines.join("\n")}` : ""
-            const capitalized = text.replace(
-                /(^\w|\s\w|\]\w)(\S*)/g,
-                (_, m1, m2) => m1.toUpperCase() + m2
-            )
-            return capitalized
-        } else {
-            const flavorText = `\n\\DE[1]${itemTooltipFlavorText(kind, item)}\\DE[0]`
-            const text = `\\TI[1]${item.name}\\I[${item.iconIndex}]\\TI[0]\n${statLines.join("\n")}`
-            const capitalized = text.replace(
-                /(^\w|\s\w|\]\w)(\S*)/g,
-                (_, m1, m2) => m1.toUpperCase() + m2
-            )
-            return `${capitalized}${flavorText}`
+            return statLines.length > 1 ?
+                    capitalizeWords(statLines.join("\n"))
+                :   ""
         }
+        // An attack skill's subtitle already shows its source's icon.
+        const titleIcon =
+            skillInfo && skillInfo.isAttackSkill ? 0 : item.iconIndex
+        return capitalizeWords(
+            `\\TI[1]${item.name}${iconCode(titleIcon)}\\TI[0]\n${statLines.join("\n")}`
+        )
     }
 
-    let HUE_BACK_AMT = 20
-    let HUE_FRONT_AMT = 20
-
-    /** Builds and renders a weapon/armor/item's tooltip.
+    /**
+     * Builds and renders a weapon/armor/item/skill tooltip.
      * @param {RPG.BaseItem} item
-     * @param {String} [type = "Tooltip"] - Use "Tooltip" to show as a tooltip, and "Shop" to show as a shop window for dialogue shops. Defaults to "Tooltip"
-     * @returns {boolean} false if there was nothing worth showing (nothing was drawn,
-     *   so the window still holds the previous item's contents and should stay hidden)
-     * */
+     * @param {Scene_Base|null} [scene=null] - used to find the acting actor
+     * @param {string} [type="Tooltip"] - "Tooltip", or "Shop" for the dialogue shop window
+     * @returns {boolean} false if there was nothing worth showing (nothing was
+     *   drawn, so the window still holds the previous contents and should stay hidden)
+     */
     Window_StateTooltip.prototype.setupItem = function (
         item,
+        scene = null,
         type = "Tooltip"
     ) {
         this._battler = null
         this._item = item
 
-        const text = itemTooltipEntryText(item, type)
+        const text = itemTooltipEntryText(item, type, scene)
 
         if (text === "") return false
-        this.renderEntries([
-            { state: null, buff: null, text: text || item.name },
-        ])
+        const entries = [{ state: null, text: text || item.name }]
+
+        this.renderEntries(entries)
         return true
     }
 
     // --------------------------------ESCAPE CODES--------------------------------//
 
-    /** Resolves \TR/\TRT/\SR/\SRT (state) and \BR (buff/debuff) turn/step codes. */
+    /** Resolves the state turn/step codes \TR, \TRT, \SR and \SRT. */
     Window_StateTooltip.prototype.convertEscapeCharacters = function (text) {
         let t = Window_Base.prototype.convertEscapeCharacters.call(this, text)
 
@@ -3009,11 +3818,19 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             )
             t = t.replace(/\x1bTR/gi, turnRemain)
 
-            let stepsRemain = this._state.stepsToRemove
+            // Only actors count steps (Game_Actor._stateSteps); enemies fall
+            // back to the state's full step count.
+            const actorSteps =
+                this._battler._stateSteps &&
+                this._battler._stateSteps[this._state.id]
+            const stepsRemain =
+                actorSteps !== undefined ? actorSteps : (
+                    this._state.stepsToRemove
+                )
             t = t.replace(
                 /\x1bSRT/gi,
                 `\x1bDE[1]${
-                    turnRemain === 1 ?
+                    stepsRemain === 1 ?
                         `${stepsRemain} step remaining`
                     :   `${stepsRemain} steps remaining`
                 }\x1bDE[0]`
@@ -3021,116 +3838,18 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             t = t.replace(/\x1bSR/gi, stepsRemain)
         }
 
-        if (this._battler && this._buff) {
-            let turnRemain = this._battler._buffTurns[this._buff.param] + 1
-            t = t.replace(/\x1bBR/gi, turnRemain)
-            t = t.replace(
-                /\x1bTRT/gi,
-                `\x1bDE[1]${
-                    turnRemain === 1 ?
-                        `${turnRemain} turn remaining`
-                    :   `${turnRemain} turns remaining`
-                }\x1bDE[0]`
-            )
-        }
-
         return t
     }
 
-    // -------------------------------COLOR MIXER--------------------------------//
-
-    /** Clamps a color channel to 0-255, treating only NaN as invalid input
-     * @param {number} value the value that should be clamped
-     * @param {number} clamp the ceiling of the clamping. Goes from 0 to this value
-     * @returns {number} the input value clamped between a max of the "Clamp" value, or a min of 0
-     * */
-    function clampChannel(value, clamp) {
-        const abs = Math.abs(value)
-        if (Number.isNaN(abs)) return clamp
-        return abs > clamp ? clamp : abs
-    }
-
     /**
-     *
-     * @param {string | number[]} base Base color to mix with in RGB or HEX, if no Alpha value is sent, it will default to 1.
-     * @param {string | number[]} added The added color to mix with in RGB or HEX, if no Alpha value is sent, it will default to 1.
-     * @param {number} ratio The ratio of base color to added color. From 0-1.
-     * @returns {string} A string fornatted as `rgba(r,g,b,a)`
-     */
-
-    function colorMix(base, added, ratio) {
-        if (typeof base === "string" && base.includes(`#`))
-            base = hexToRGBA(base)
-        if (typeof added === "string" && added.includes(`#`))
-            added = hexToRGBA(added)
-        if (!Array.isArray(base) && !typeof base !== "string") {
-            console.error(
-                `Tried to mix colors with a base color that is not an RGBA or HEX value. Value; ${base}. Using inputted base color ${base}`
-            )
-            return base
-        }
-
-        if (!Array.isArray(base) && !typeof base !== "string") {
-            console.error(
-                `Tried to mix colors with a base color that is not an RGBA or HEX value. Value; ${added}. Using inputted base color ${base}`
-            )
-            return base
-        }
-
-        const baseCol = [
-            clampChannel(base[0]),
-            clampChannel(base[1]),
-            clampChannel(base[2]),
-        ]
-        const addedCol = [
-            clampChannel(added[0]),
-            clampChannel(added[1]),
-            clampChannel(added[2]),
-        ]
-
-        ratio = Number.isNaN(Math.abs(ratio)) ? 1 : Math.min(Math.abs(ratio), 1)
-        const ratioBase = ratio
-        const ratioAdded = 1 - ratio
-
-        let mix = []
-        mix[3] =
-            Math.abs(
-                clampChannel(base[3], 1) * ratioBase -
-                    clampChannel(added[3], 1) * ratioAdded
-            ).toFixed(2) || 1
-
-        mix[0] = Math.round(addedCol[0] * ratioAdded + baseCol[0] * ratioBase) // red
-        mix[1] = Math.round(addedCol[1] * ratioAdded + baseCol[1] * ratioBase) // green
-        mix[2] = Math.round(addedCol[2] * ratioAdded + baseCol[2] * ratioBase) // blue
-        return `rgba(${mix.join(`,`)})`
-    }
-
-    function hexToRGBA(hex) {
-        const matchRegex =
-            /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})?$/i
-        const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i
-
-        // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
-        hex = hex.replace(shorthandRegex, function (m, r, g, b) {
-            return r + r + g + g + b + b
-        })
-
-        var result = matchRegex.exec(hex)
-        const convertedRGB = [
-            parseInt(result[1], 16) || 255,
-            parseInt(result[2], 16) || 255,
-            parseInt(result[3], 16) || 255,
-            parseInt(result[4], 16) / 255 || 1,
-        ]
-        return result ? convertedRGB : null
-    }
-
-    /**
-     * Get the hex value of the bold outline color. This should only be called when the windowskin is loaded and ready
-     * @param {number} indexn The index of the color to get
-     * @returns {string} Bold Color as HEX
+     * A windowskin color index as a CSS color, cached in M_hexColorMap.
+     * Strings ("#rrggbb") pass through unchanged. Only call once the
+     * windowskin has loaded (i.e. while drawing).
+     * @param {number|string} index - 0-31, or a "#rrggbb" string
+     * @returns {string}
      */
     function hexColorMapManager(index) {
+        if (typeof index === "string") return index
         if (M_hexColorMap.has(index)) return M_hexColorMap.get(index)
 
         if (index > 31 || index < 0) {
@@ -3146,12 +3865,20 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
         return hex
     }
-
     /**
-     * Adds this plugin's own bold/italic/color escape codes on top of the
-     * engine's defaults: \BI (bold, inline color), \BS (bold, stat color),
-     * \B (bold, bold color), \IT (italic), \LB (label, +1 font size),
-     * \ST (subtitle, +2 font size), \TI (title, +2 font size).
+     * A color constant (see COLORS) as a CSS color: a "#rrggbb" string as-is,
+     * a windowskin index through hexColorMapManager.
+     * @param {number|string} value
+     * @returns {string}
+     */
+    function resolveTextColor(value) {
+        return typeof value === "string" ? value : hexColorMapManager(value)
+    }
+    /**
+     * This plugin's escape codes on top of the engine's: the [1]/[0] style
+     * toggles \BI, \BS, \BSD, \B (bold variants), \IT (italic), \LB (label),
+     * \ST (subtitle), \TI (title), \DE (description), plus \> (right-align),
+     * \JU/\JG (justified lists) and text-sized icons \I/\J.
      * @param {string} code
      * @param {object} textState
      */
@@ -3163,13 +3890,14 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             case "BI": {
                 const on = !!this.obtainEscapeParam(textState)
                 this.contents.fontBold = on
-                this.processColorChange(on ? inlineColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? statColor : textColor)
+                )
                 this.contents.outlineWidth =
                     on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH
                 this.contents.outlineColor =
                     on ?
-                        hexColorMapManager(boldOutlineColor)
-                        //`${colorMix(`${hexColorMapManager(inlineColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.9)}`
+                        `${hexColorMapManager(boldOutlineColor)}`
                     :   NORMAL_OUTLINE_COLOR
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
@@ -3180,16 +3908,39 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
                 }
                 break
             }
+
             case "BS": {
                 const on = !!this.obtainEscapeParam(textState)
                 this.contents.fontBold = on
-                this.processColorChange(on ? statColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? statColor : textColor)
+                )
                 this.contents.outlineWidth =
                     on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH
                 this.contents.outlineColor =
                     on ?
-                        hexColorMapManager(boldOutlineColor)
-                        //`${colorMix(`${hexColorMapManager(statColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.8)}`
+                        `${hexColorMapManager(boldOutlineColor)}`
+                    :   NORMAL_OUTLINE_COLOR
+                this.contents._context.letterSpacing =
+                    on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
+                if (on) {
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_BOLD)
+                } else {
+                    this.contents.fontSize = this.textSize(TEXT_SIZE_NORMAL)
+                }
+                break
+            }
+            case "BSD": {
+                const on = !!this.obtainEscapeParam(textState)
+                this.contents.fontBold = on
+                this.changeTextColor(
+                    resolveTextColor(on ? statDmgColor : textColor)
+                )
+                this.contents.outlineWidth =
+                    on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH
+                this.contents.outlineColor =
+                    on ?
+                        `${hexColorMapManager(statDmgOutlineColor)}AF`
                     :   NORMAL_OUTLINE_COLOR
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
@@ -3203,13 +3954,14 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             case "B": {
                 const on = !!this.obtainEscapeParam(textState)
                 this.contents.fontBold = on
-                this.processColorChange(on ? boldColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? statColor : textColor)
+                )
                 this.contents.outlineWidth =
                     on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH
                 this.contents.outlineColor =
                     on ?
-                        hexColorMapManager(boldOutlineColor)
-                        //`${colorMix(`${hexColorMapManager(boldColor)}${BOLD_OUTLINE_ALPHA}`, [0, 0, 0, 1], 0.8  )}`
+                        `${hexColorMapManager(boldOutlineColor)}`
                     :   NORMAL_OUTLINE_COLOR
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
@@ -3226,8 +3978,16 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
             case "LB": {
                 const on = !!this.obtainEscapeParam(textState)
-                this.processColorChange(on ? labelColor : textColor)
-                this.outlineWidth = 6
+                this.changeTextColor(
+                    resolveTextColor(on ? baseColor : textColor)
+                )
+                this.contents.outlineWidth = on ? 5 : NORMAL_OUTLINE_WIDTH
+                this.contents.outlineColor =
+                    on ?
+                        `${hexColorMapManager(labelOutlineColor)}`
+                    :   NORMAL_OUTLINE_COLOR
+                this.contents._context.letterSpacing =
+                    on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
                     this.contents.fontSize = this.textSize(TEXT_SIZE_LABEL)
                 } else {
@@ -3237,7 +3997,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
             case "ST": {
                 const on = !!this.obtainEscapeParam(textState)
-                this.processColorChange(on ? subtitleColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? subtitleColor : textColor)
+                )
                 if (on) {
                     this.contents.fontSize = this.textSize(TEXT_SIZE_SUBTITLE)
                 } else {
@@ -3247,7 +4009,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
             case "TI": {
                 const on = !!this.obtainEscapeParam(textState)
-                this.processColorChange(on ? titleColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? titleColor : textColor)
+                )
                 if (on) {
                     this.contents.fontSize = this.textSize(TEXT_SIZE_TITLE)
                 } else {
@@ -3257,7 +4021,9 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
             case "DE": {
                 const on = !!this.obtainEscapeParam(textState)
-                this.processColorChange(on ? descColor : textColor)
+                this.changeTextColor(
+                    resolveTextColor(on ? descColor : textColor)
+                )
                 if (on) {
                     this.contents.fontItalic = true
                     this.contents.fontSize = this.textSize(
@@ -3271,6 +4037,30 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             }
             case ">": {
                 this.processRightAlign(textState)
+                break
+            }
+            // \JU is consumed by wrapJustifiedLine - one reaching drawing is a no-op.
+            case "JU": {
+                break
+            }
+            case "JG": {
+                this.processJustifyGap(textState)
+                break
+            }
+            // Handled here instead of in default, which resets the font -
+            // icons size themselves from the current font (see processDrawIcon).
+            case "I": {
+                this.processDrawIcon(
+                    this.obtainEscapeParam(textState),
+                    textState
+                )
+                break
+            }
+            case "J": {
+                this.processDrawIconNspc(
+                    this.obtainEscapeParam(textState),
+                    textState
+                )
                 break
             }
             default:
@@ -3287,19 +4077,90 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         }
     }
 
+    // TEXT-SIZED ICONS (\I, \J) -----------------------------
+    // The engine always draws icons at the full 32x32 IconSet size, which
+    // towers over the small tooltip fonts. Here an icon is scaled to the
+    // current font size (+ TOOLTIP_ICON_SIZE_OFFSET), centered on the line,
+    // with the engine's 2px-per-side padding scaled down to match. Measuring
+    // passes advance x by the same amount, so wrapping and window width agree.
+
+    /** Pixels added to the font size to get an icon's drawn size. */
+    const TOOLTIP_ICON_SIZE_OFFSET = 4
+
+    /** @returns {number} drawn icon size in px for the current font */
+    Window_StateTooltip.prototype.tooltipIconSize = function () {
+        return Math.max(20, this.contents.fontSize + TOOLTIP_ICON_SIZE_OFFSET)
+    }
+
+    /**
+     * Draws iconIndex scaled to size x size, vertically centered on the
+     * current line.
+     * @param {number} iconIndex
+     * @param {object} textState
+     * @param {number} x - left edge of the icon
+     * @param {number} size
+     */
+    Window_StateTooltip.prototype.drawTooltipIcon = function (
+        iconIndex,
+        textState,
+        x,
+        size
+    ) {
+        const bitmap = ImageManager.loadSystem("IconSet")
+        const pw = ImageManager.iconWidth
+        const ph = ImageManager.iconHeight
+        const sx = (iconIndex % 16) * pw
+        const sy = Math.floor(iconIndex / 16) * ph
+        const lineHeight = textState.height || this.lineHeight()
+        const y = textState.y + Math.floor((lineHeight - size) / 2)
+        this.contents.blt(bitmap, sx, sy, pw, ph, x, y, size, size)
+    }
+
+    /** \I: text-sized icon with padding on both sides. */
+    Window_StateTooltip.prototype.processDrawIcon = function (
+        iconIndex,
+        textState
+    ) {
+        const size = this.tooltipIconSize()
+        const pad = Math.max(3, Math.round((size * 2) / ImageManager.iconWidth))
+        if (textState.drawing) {
+            this.drawTooltipIcon(iconIndex, textState, textState.x + pad, size)
+        }
+        textState.x += size + pad * 2
+    }
+
+    /** \J (bunchastuff): text-sized icon with no padding. */
+    Window_StateTooltip.prototype.processDrawIconNspc = function (
+        iconIndex,
+        textState
+    ) {
+        const size = this.tooltipIconSize()
+        if (textState.drawing) {
+            this.drawTooltipIcon(iconIndex, textState, textState.x, size)
+        }
+        textState.x += size
+    }
+
     // RIGHT-ALIGN (\>) -----------------------------
     // Measuring passes (textSizeEx, drawing === false) run before the window
     // width is known, so \> only reserves RIGHT_ALIGN_MIN_GAP there - that
     // gap is what makes the line count as "left + gap + right" wide when
     // renderEntries sizes the window. The drawing pass then jumps x so the
     // rest of the line ends at _rightAlignEdge (the widest line's width).
+    // \>[n] is the same, but never starts left of n px into the line - the
+    // form wrapLine gives a wrapped right-aligned value's continuation
+    // lines, n being the width of the label before the original \>.
     const RIGHT_ALIGN_MIN_GAP = 24
 
     /**
-     * Handles \>: pushes the rest of the current line flush to the right edge.
+     * Handles \> and \>[n]: pushes the rest of the current line flush to the
+     * right edge, never left of n px from the line's start.
      * @param {object} textState
      */
     Window_StateTooltip.prototype.processRightAlign = function (textState) {
+        // "" (no [n]) for a plain \>.
+        const minX = Number(this.obtainEscapeParam(textState)) || 0
+        textState.x = Math.max(textState.x, textState.startX + minX)
         if (!textState.drawing) {
             textState.x += RIGHT_ALIGN_MIN_GAP
             return
@@ -3317,6 +4178,29 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
             textState.x + RIGHT_ALIGN_MIN_GAP,
             edge - restWidth
         )
+    }
+
+    // JUSTIFY GAP (\JG) -----------------------------
+    // Inserted by wrapJustifiedLine between the items of a wrapped list row.
+    // Measuring passes leave it zero-width (the row is measured at its plain
+    // ", " spacing). The drawing pass shares the row's leftover width - edge
+    // minus the row's natural end - evenly over the gaps still to come, so
+    // every gap recomputes from where the previous one left x and the last
+    // one lands the row flush on _rightAlignEdge, rounding included.
+
+    /** Handles \JG: widens this gap by its share of the row's free space. @param {object} textState */
+    Window_StateTooltip.prototype.processJustifyGap = function (textState) {
+        if (!textState.drawing) return
+        const lineEnd = textState.text.indexOf("\n", textState.index)
+        const rest = textState.text.slice(
+            textState.index,
+            lineEnd === -1 ? undefined : lineEnd
+        )
+        const gapsLeft = 1 + (rest.match(/\x1bJG/gi) || []).length
+        const edge = this._rightAlignEdge || this.contentsWidth()
+        const free =
+            edge - textState.x - this.measureRestOfLine(textState, rest)
+        if (free > 0) textState.x += Math.floor(free / gapsLeft)
     }
 
     /**
@@ -3386,11 +4270,11 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
     // LINE-HEIGHT FIX -----------------------------
     // The engine's own maxFontSizeInLine only recognizes \{, \}, and \FS[n]
-    // when pre-measuring a line's height, so it doesn't know \TI/\ST/\LB
+    // when pre-measuring a line's height, so it doesn't know \TI/\ST/\LB/\DE
     // change size too - lines using them would draw correctly but get the
     // wrong vertical space reserved around them. Reimplemented here with the
-    // same lookahead, adding TI/ST/LB using the same size deltas
-    // processEscapeCharacter applies above.
+    // same lookahead and the same sizes processEscapeCharacter applies. The
+    // bold codes only ever shrink the font, so they never raise the maximum.
     /** @param {string} line @returns {number} */
     Window_StateTooltip.prototype.maxFontSizeInLine = function (line) {
         let maxFontSize = this.contents.fontSize
@@ -3442,16 +4326,20 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
 
     // LINE-SPACING MATCH -----------------------------
     // The engine derives line spacing as lineHeight() - mainFontSize(),
-    // assuming a window's base text is the main font size (22). Tooltip base
-    // text is TEXT_SIZE_NORMAL (20), so that made every plain tooltip line
-    // 2px shorter than a message window line. Deriving the spacing from
+    // assuming a window's base text is the main font size. Tooltip base text
+    // is the smaller TEXT_SIZE_NORMAL, so every plain tooltip line came out
+    // shorter than a message window line. Deriving the spacing from
     // TEXT_SIZE_NORMAL instead makes a plain line exactly lineHeight() tall -
     // the same as Window_Message - while bigger/smaller lines (\TI, \LB, \DE)
     // keep the same spacing around their own font size. Uses this window's
     // offset size, so shop lines keep matching the message window beside it.
+    // _lineSpacingTrim then tightens tooltips below that (0 for the shop).
     /** @param {object} textState @returns {number} */
     Window_StateTooltip.prototype.calcTextHeight = function (textState) {
-        const lineSpacing = this.lineHeight() - this.textSize(TEXT_SIZE_NORMAL)
+        const lineSpacing =
+            this.lineHeight() -
+            this.textSize(TEXT_SIZE_NORMAL) -
+            (this._lineSpacingTrim || 0)
         const lastFontSize = this.contents.fontSize
         const lines = textState.text.slice(textState.index).split("\n")
         const textHeight = this.maxFontSizeInLine(lines[0]) + lineSpacing
@@ -3459,16 +4347,11 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         return textHeight
     }
 
-    // Tooltip window has no scrollbar arrows to draw.
-    Window_Scrollable.prototype.updateArrows = function () {}
-
-    // FONT-BOLD FIX -----------------------------
-    // The loaded custom font only registers a "normal" weight, so a plain
-    // fontBold request has no bold face to fall back on - bold is faked with
-    // a heavier, color-matched outline instead. outlineWidth/outlineColor are
-    //directly in processEscapeCharacter/resetFontSettings above (at the
-    // same time as fontBold), so the vanilla engine's own _drawTextOutline
-    // already picks them up correctly - no Bitmap-level patch needed.
+    /** The tooltip never scrolls, so it never shows scroll arrows. */
+    Window_StateTooltip.prototype.updateArrows = function () {
+        this.downArrowVisible = false
+        this.upArrowVisible = false
+    }
 
     //============================================================================//
     //                        DIALOGUE SHOP INFO WINDOW                           //
@@ -3486,8 +4369,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     //     that page's first Change Items/Weapons/Armors command.
 
     const DIALOGUE_SHOP_ITEM_VAR_ID = 481
-    // Window_Message types 1/frame; a stat block is several times longer
-    // than a message, so it types faster to finish in a similar time.
+    /** Characters the shop window types per frame (Window_Message types 1). */
     const SHOP_TYPEWRITER_CHARS_PER_FRAME = 1
 
     /**
@@ -3609,6 +4491,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this._dialogueShopInfo = win
         win._maxTextWidth = maxShopInfoWidth
         win._fontSizeOffset = shopFontOffset
+        win._lineSpacingTrim = 0
         // Open/close like the message window (expand/squish from the center,
         // not the tooltips' top-down unroll) and type its text out.
         win._openFromTop = false
@@ -3655,7 +4538,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         // Same contract as the tooltips: the window's own update() opens or
         // closes it from tooltipActive - calling open()/close() here instead
         // would just be undone by that update() the next frame.
-        this._dialogueShopInfo.frontSpriteHue = -0
+        this._dialogueShopInfo.frontSpriteHue = 0
         this._dialogueShopInfo.backSpriteHue = 0
         this._dialogueShopInfo.backOpacity = 192
         this._dialogueShopInfo.tooltipActive = hasContent
@@ -3672,12 +4555,11 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
     Scene_Map.prototype.syncDialogueShopInfo = function () {
         const win = this._dialogueShopInfo
         if (win._item !== dialogueShop.item) {
-            win._hasShopContent = win.setupItem(dialogueShop.item, "Shop")
+            win._hasShopContent = win.setupItem(dialogueShop.item, null, "Shop")
             win._fullHeight = win.height
             win._shopHeight = null
         }
         if (!win._hasShopContent) return false
-        this.visible = true
         this.placeDialogueShopInfo()
         return true
     }
@@ -3696,9 +4578,7 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         win.y = this._windowLayer.y + Graphics.boxHeight - win.height
     }
 
-    //---------------------------------------------------------------//
-    // Message window beside the info window
-    //---------------------------------------------------------------//
+    //------------------MESSAGE WINDOW BESIDE THE INFO WINDOW-------------------//
     // While a dialogue shop is open, the message window shares the bottom
     // strip with the info window: it starts at the info window's right edge,
     // its text is re-wrapped to the narrower width, and it grows upward by
@@ -3826,9 +4706,3 @@ DataManager.loadDataFile("$dataItemTooltips", "WauLau_ItemTooltips.json")
         this._dialogueShopBaseRect = null
     }
 })()
-
-// Color reference notes:
-// #C2D5FB - item Color ingame
-// #DCEDD4 - item Color[0]
-// #D8EBCF - Item outlinecolor ingame
-// #D8EBCF - state color and outline color

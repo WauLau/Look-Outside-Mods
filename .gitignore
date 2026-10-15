@@ -18,6 +18,11 @@ scripts/*
 scripts
 .claude
 LookOutsideMusicMod
+.venv
+temp-patchnotes.md
+.vscode/tasks.json
+todo.md
+
 
 #Temp
 __pycache__
