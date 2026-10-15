@@ -386,7 +386,7 @@
         },
         {
             "from": "WormDance",
-            "to": { "name": "WormDance_HorrorOST" },
+            "to": { "name": "WormDance", "pitch": 85 },
             "troop": 606
         },
         {
@@ -524,6 +524,11 @@
             "to": { "name": "BrokenPromises" },
             "troop": 673
         },
+        {
+            "from": "_battleBgm",
+            "to": { "name": "RunAway_VaporWave" },
+            "troop": 614
+        },
         {}
     ],
     "pageBgm": [
@@ -552,7 +557,7 @@
             "at": "start"
         },
         {
-            "play": { "name": "BeautifulButWrong_HorrorOST" },
+            "play": { "name": "BeautifulButWrong_VaporWave" },
             "troop": 615,
             "page": 2,
             "at": "end"
