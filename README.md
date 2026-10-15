@@ -26,54 +26,23 @@ All mods are compatible with [RPGModder](https://www.nexusmods.com/lookoutside/m
 
 ```javascript
     {
-        name: "WauLau_LookAtTooltips",
-        status: true,
-        description:
-            "(v2.2) Popup tooltip when hovering a state icon, or a weapon/armor row in the item, equip, or shop screens, with JSON-driven text, stat expressions, bold/italic and color codes. Also supports gamepad browsing for both.",
-        parameters: {
-            offsetX: "0",
-            offsetY: "0",
-            decimalPlaces: "0",
-            expressionColor: "8",
-            textColor: "1",
-            boldColor: "0",
-            enemyPercentOnly: "true",
-            maxWidth: "400",
-            gamepadToggleButton: "8",
-            gamepadPrevButton: "6",
-            gamepadNextButton: "7",
-            buffTooltipTexts: "",
-            hpBuff: "\\}\\I[32]\\C[1]HP Buff: \\C[3](Turns: \\BR)",
-            mpBuff: "\\}\\I[33]\\C[1]MP Buff: \\C[3](Turns: \\BR)",
-            atkBuff: "\\}\\I[34]\\C[1]Atk Buff: \\C[3](Turns: \\BR)",
-            defBuff: "\\}\\I[35]\\C[1]Def Buff: \\C[3](Turns: \\BR)",
-            matkBuff: "\\}\\I[36]\\C[1]M.Atk Buff: \\C[3](Turns: \\BR)",
-            mdefBuff: "\\}\\I[37]\\C[1]M.Def Buff: \\C[3](Turns: \\BR)",
-            agiBuff: "\\}\\I[38]\\C[1]Agi Buff: \\C[3](Turns: \\BR)",
-            lukBuff: "\\}\\I[39]\\C[1]Luk Buff: \\C[3](Turns: \\BR)",
-            debuffTooltipTexts: "",
-            hpDebuff: "\\}\\I[48]\\C[1]HP Debuff: \\C[3](Turns: \\BR)",
-            mpDebuff: "\\}\\I[49]\\C[1]MP Debuff: \\C[3](Turns: \\BR)",
-            atkDebuff: "\\}\\I[50]\\C[1]Atk Debuff: \\C[3](Turns: \\BR)",
-            defDebuff: "\\}\\I[51]\\C[1]Def Debuff: \\C[3](Turns: \\BR)",
-            matkDebuff: "\\}\\I[52]\\C[1]M.Atk Debuff: \\C[3](Turns: \\BR)",
-            mdefDebuff: "\\}\\I[53]\\C[1]M.Def Debuff: \\C[3](Turns: \\BR)",
-            agiDebuff: "\\}\\I[54]\\C[1]Agi Debuff: \\C[3](Turns: \\BR)",
-            lukDebuff: "\\}\\I[55]\\C[1]Luk Debuff: \\C[3](Turns: \\BR)",
-        },
+        "name":"WauLau_LookAtTooltips",
+        "status":true,
+        "description":"(v3.0) Enables fully integrated tooltips for the game \"Look Outside\".",
+        "parameters":{"enemyPercentOnly":"true","gamepadPrevButton":"6","gamepadNextButton":"7"}
     },
     {
         name: "WauLau_VisualTweak",
         status: true,
         description:
             "(v1.1) Adds a 'Visual Tweaks' subpage to the in-game Options menu, with Brightness, Gamma, Contrast and Saturation sliders, backed by a screen-wide color adjustment filter.",
-        parameters: {},
+        parameters: {}
     },
     {
         name: "WauLau_ExtendedSoundtrack",
         status: true,
         description: "",
-        parameters: {},
+        parameters: {}
     },
 ```
 
