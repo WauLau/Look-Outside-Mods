@@ -21,7 +21,7 @@ All mods are compatible with [RPGModder](https://www.nexusmods.com/lookoutside/m
 - Download the mod you want by clicking the mod link above or getting it from mods/
 - Unzip the folder
 - Drag the folder into the root folder of Look Outside ('/Steam/steamapps/common/Look Outside')
-- Add the following to your `plugins.js`
+- Add the following to your `plugins.js`  
   based on the downloaded mod
 
 ```javascript

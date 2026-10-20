@@ -33,5 +33,5 @@ var $plugins =
 {"name":"craftingnotebook","status":true,"description":"One menu for all recipes. Shows known recipes even when missing ingredients; unknown recipes only appear if you have all required materials.","parameters":{}},
 {"name":"WauLau_MenuDangerMeter","status":true,"description":"(v1.0) Shows the danger meter in the menu while away from home","parameters":{}},
 {"name":"WauLau_GamePadSupport","status":true,"description":"QOL Fixes","parameters":{}},
-{"name":"WauLau_LookAtTooltips","status":true,"description":"(v2.2) Popup tooltip when hovering a state icon, or a weapon/armor row in the item, equip, or shop screens, with JSON-driven text, stat expressions, bold/italic and color codes. Also supports gamepad browsing for both.","parameters":{"enemyPercentOnly":"true","gamepadPrevButton":"6","gamepadNextButton":"7"}}
+{"name":"WauLau_LookAtTooltips","status":true,"description":"(v3.0) Enables fully integrated tooltips for the game \"Look Outside\".","parameters":{"enemyPercentOnly":"true","gamepadPrevButton":"6","gamepadNextButton":"7"}}
 ];

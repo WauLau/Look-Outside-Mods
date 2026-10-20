@@ -63,6 +63,15 @@
  * a window in the bottom-left while the Buy dialogue runs. The message window
  * moves to the right of it and re-wraps its text to fit.
  *
+ * 5.) Locking tooltips (keyboard T):
+ * Pressing T while a tooltip is open locks it in place: it stops following
+ * the mouse and stays open while the mouse moves over it. Hovering a state
+ * name inside it (e.g. "Rage" in a skill's "Grants:" line) then opens that
+ * state's own tooltip beside it. Press T again to unlock. A locked tooltip
+ * also unlocks by itself once whatever it belongs to leaves the screen.
+ * State names in generated lines are linked automatically; hand-written
+ * text can link one with \SL (see below).
+ *
  * ======================================================================================
  * ESCAPE CODES
  * ======================================================================================
@@ -86,6 +95,9 @@
  *                     list doesn't fit on one line, the label moves to its own
  *                     line and the list wraps item by item, spread evenly
  *                     across the full width.
+ *   \SL[id]...\SL[0] - link the text in between to state <id>'s tooltip,
+ *                     opened by hovering it while the tooltip is locked,
+ *                     e.g. "Grants \SL[7]Rage\SL[0]"
  *   {expression}    - math on the tooltip's battler, printed as a stat value,
  *                     e.g. {maxhp * 0.1}
  *
@@ -213,6 +225,73 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     Input.gamepadMapper[Number(params.gamepadPrevButton || 6)] = "TooltipPrev"
     Input.gamepadMapper[Number(params.gamepadNextButton || 7)] = "TooltipNext"
 
+    //---------------------------BLACK & WHITE FILTER-------------------------//
+    // Hard two-tone threshold: every pixel becomes pure black or pure white
+    // by its luminance (not greyscale - no in-between shades), alpha kept.
+    // SHADER INPUTS -----
+    // PIXI's default filter vertex shader supplies vTextureCoord/uSampler.
+    // Texture colors are premultiplied alpha, so rgb is divided by alpha
+    // before measuring luminance and multiplied back on output - otherwise
+    // semi-transparent edges read as dark and get black fringes.
+    const BLACK_WHITE_FRAGMENT = `
+        varying vec2 vTextureCoord;
+        uniform sampler2D uSampler;
+        uniform float threshold;
+        uniform float softness;
+        uniform float invert;
+
+        void main(void) {
+            vec4 color = texture2D(uSampler, vTextureCoord);
+            if (color.a <= 0.0) {
+                gl_FragColor = color;
+                return;
+            }
+            vec3 rgb = color.rgb / color.a;
+            float lum = dot(rgb, vec3(0.299, 0.587, 0.114));
+            float bw = softness > 0.0
+                ? smoothstep(threshold - softness, threshold + softness, lum)
+                : step(threshold, lum);
+            bw = mix(bw, 1.0 - bw, invert);
+            gl_FragColor = vec4(vec3(bw) * color.a, color.a);
+        }
+    `
+
+    class BlackWhiteFilter extends PIXI.Filter {
+        /**
+         * @param {number} [threshold=0.5] - luminance cutoff (0-1): brighter is white, darker is black
+         * @param {number} [softness=0] - half-width of a smooth black-to-white ramp around the cutoff; 0 is a hard edge
+         * @param {boolean} [invert=false] - swaps black and white
+         */
+        constructor(threshold = 0.5, softness = 0, invert = false) {
+            super(null, BLACK_WHITE_FRAGMENT, {
+                threshold,
+                softness,
+                invert: invert ? 1 : 0,
+            })
+        }
+        /** Luminance cutoff (0-1). @type {number} */
+        get threshold() {
+            return this.uniforms.threshold
+        }
+        set threshold(value) {
+            this.uniforms.threshold = value
+        }
+        /** Smooth ramp half-width around the cutoff; 0 is a hard edge. @type {number} */
+        get softness() {
+            return this.uniforms.softness
+        }
+        set softness(value) {
+            this.uniforms.softness = value
+        }
+        /** Swaps black and white. @type {boolean} */
+        get invert() {
+            return this.uniforms.invert > 0.5
+        }
+        set invert(value) {
+            this.uniforms.invert = value ? 1 : 0
+        }
+    }
+
     /**
      * @param {RPG.State} state - database state object
      * @returns {object|undefined} the state's entry in $tooltipData.states, if any
@@ -237,7 +316,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     /**
      * Builds the tooltip text for a state from data/WauLau_TooltipData.json.
      * @param {RPG.State} state - database state object
-     * @param {Game_Battler} battler - battler the tooltip is being shown for
+     * @param {Game_Battler|null} battler - battler the tooltip is being shown
+     *   for, or null for a state shown on its own (see setupState)
      * @returns {string|null} formatted tooltip text, or null if the state has no JSON entry
      */
     function stateTooltipText(state, battler) {
@@ -342,11 +422,16 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     function evaluateTooltipExpressions(battler, text) {
         return text.replace(/\{([^{}]+)\}/g, (_, expr) => {
             try {
-                if (enemyPercentOnly && isEnemyBattler(battler)) {
+                // NO BATTLER -----
+                // A state shown on its own (see setupState) has nobody to
+                // read stats from, so it gets the same percent form as enemies.
+                if (!battler || (enemyPercentOnly && isEnemyBattler(battler))) {
                     const percentText = enemyPercentExpression(expr)
                     if (percentText === null) {
                         throw new Error(
-                            `Enemy Tooltips: Percent Only is ON, but "${expr}" isn't a simple "stat * number" expression, so it can't be converted to a percent - reword this entry`
+                            battler ?
+                                `Enemy Tooltips: Percent Only is ON, but "${expr}" isn't a simple "stat * number" expression, so it can't be converted to a percent - reword this entry`
+                            :   `"${expr}" isn't a simple "stat * number" expression, so it can't be shown without a battler (linked state tooltip) - reword this entry`
                         )
                     }
                     return `\\BS[1]${percentText}\\BS[0]`
@@ -378,13 +463,11 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     //                        GAMEPAD TOOLTIP BROWSING                            //
     //============================================================================//
 
-    // Shared state for gamepad-driven tooltip browsing. Only one scene is ever
-    // active at a time, so a single object is fine - reset whenever a scene
-    // that supports tooltips is (re)created.
-    //
-    // mode: 'battler' cycles state/buff icons by hand with Prev/Next;
-    // 'item' shows the one row an item/equip/shop list's cursor was on
-    // when the button was pressed.
+    /** Shared state for gamepad-driven tooltip browsing. Only one scene is ever
+     active at a time, so a single object is fine - reset whenever a scene
+     that supports tooltips is (re)created.
+     @property {string} mode 'battler' cycles state/buff icons by hand with Prev/Next; 'item' shows the one row an item/equip/shop list's cursor was on when the button was pressed.
+     */
     const gamepadTooltip = {
         active: false,
         mode: null,
@@ -425,6 +508,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     const _Input_update = Input.update
     Input.update = function () {
         gamepadMenuTriggered = false
+        tooltipLockTriggered = tooltipLockKeyPending
+        tooltipLockKeyPending = false
         _Input_update.call(this)
     }
 
@@ -442,6 +527,30 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             ) {
                 gamepadMenuTriggered = true
             }
+        }
+    }
+
+    //----------------------------TOOLTIP LOCK KEY----------------------------//
+    // T is read from the raw keydown instead of through Input.keyMapper:
+    // Mano_InputConfig replaces the whole keyMapper with the player's saved
+    // keyboard config on load, which would drop a mapping added here.
+    // KEYDOWN LATCH -----
+    // Key events arrive between frames, so a press waits in
+    // tooltipLockKeyPending until Input.update turns it into a one-frame
+    // trigger (tooltipLockTriggered).
+
+    /** keyCode of the key that locks/unlocks the tooltip (T). */
+    const TOOLTIP_LOCK_KEY_CODE = 84
+
+    let tooltipLockKeyPending = false
+    /** True for the one frame the lock key went down. */
+    let tooltipLockTriggered = false
+
+    const _Input_onKeyDown = Input._onKeyDown
+    Input._onKeyDown = function (event) {
+        _Input_onKeyDown.call(this, event)
+        if (event.keyCode === TOOLTIP_LOCK_KEY_CODE && !event.repeat) {
+            tooltipLockKeyPending = true
         }
     }
 
@@ -464,7 +573,9 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         return mouseInUse
     }
 
-    /** Per-frame, right after input polling: decides who owns hover this frame. */
+    /** Per-frame, right after input polling: decides who owns hover this frame.
+     * @alias SceneManager.updateInputData
+     */
     function updateMouseOwnership() {
         // SYNTHETIC MOVES -----
         // Chromium can fire mousemove without the cursor moving, so a
@@ -490,6 +601,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     SceneManager.updateInputData = function () {
         _SceneManager_updateInputData.call(this)
         updateMouseOwnership()
+        updateLockDismissInput()
     }
 
     const _TouchInput_clear = TouchInput.clear
@@ -497,6 +609,75 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     TouchInput.clear = function () {
         _TouchInput_clear.call(this)
         mouseInUse = false
+        consumeTouchRelease = false
+    }
+
+    //--------------------------LOCK DISMISS INPUT----------------------------//
+    // While a tooltip is locked, cancel (Esc/X/gamepad B), a right click, or
+    // a left click outside both tooltips unlocks it - same as pressing T -
+    // and that press is consumed, so the menu underneath doesn't also go
+    // back a step or select/confirm the clicked row.
+    // CONSUME BEFORE WINDOWS -----
+    // Scene windows read Input/TouchInput inside the scene's own update,
+    // before updateTooltipLock runs, so this runs right after input polling
+    // instead and strips the press from the input state there.
+
+    /** True for the one frame a dismiss press asked a locked tooltip to unlock. */
+    let tooltipUnlockRequested = false
+    /** Set when a dismissing left click is consumed: its release is consumed too. */
+    let consumeTouchRelease = false
+
+    /**
+     * Whether the mouse is over the locked tooltip or an open link tooltip.
+     * @param {Scene_Base} scene
+     * @returns {boolean}
+     */
+    function isTouchInsideTooltips(scene) {
+        const tooltip = scene._stateTooltip
+        const linkTooltip = scene._linkTooltip
+        return (
+            (tooltip && tooltip.isTouchedInsideFrame()) ||
+            (linkTooltip &&
+                linkTooltip.openness > 0 &&
+                linkTooltip.isTouchedInsideFrame())
+        )
+    }
+
+    /** Per-frame, right after input polling:
+     * turns a dismiss press into tooltipUnlockRequested and consumes it.
+     */
+    function updateLockDismissInput() {
+        tooltipUnlockRequested = false
+        const scene = SceneManager._scene
+        if (!isTooltipLocked(scene)) return
+
+        // Input.isTriggered("cancel") is also true for "escape".
+        if (Input.isTriggered("cancel")) {
+            // isTriggered/isRepeated only match _latestButton, so clearing
+            // it drops the press while a held key stays non-repeating.
+            Input._latestButton = null
+            tooltipUnlockRequested = true
+        }
+        if (TouchInput.isCancelled()) {
+            TouchInput._currentState.cancelled = false
+            tooltipUnlockRequested = true
+        }
+        if (TouchInput.isTriggered() && !isTouchInsideTooltips(scene)) {
+            TouchInput._currentState.triggered = false
+            consumeTouchRelease = true
+            tooltipUnlockRequested = true
+        }
+    }
+
+    const _TouchInput_update = TouchInput.update
+    /** Consumes the release of a dismissing click, so it can't confirm a row (isClicked). */
+    TouchInput.update = function () {
+        _TouchInput_update.call(this)
+        if (consumeTouchRelease && this._currentState.released) {
+            consumeTouchRelease = false
+            this._currentState.released = false
+            this._clicked = false
+        }
     }
 
     //============================================================================//
@@ -714,14 +895,31 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     // real prototype member instead of a dynamically-assigned property.
 
     /**
-     * Creates this scene's tooltip window (hidden by default) and resets
-     * gamepad-browsing state for it.
+     * Creates this scene's single tooltip window (hidden by default) and resets
+     * the gamepad-browsing state for it.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.createTooltipWindow
+     * @alias Scene_MenuBase.prototype.createTooltipWindow
      */
     function createTooltipWindow(scene) {
         scene._stateTooltip = new Window_StateTooltip()
         scene.addChild(scene._stateTooltip)
         resetGamepadTooltip()
+
+        // LINK TOOLTIP -----
+        // Second window for a state hovered inside the locked tooltip (see
+        // TOOLTIP LOCK & STATE LINKS). Added after the main one, so it draws on top.
+        scene._tooltipLocked = false
+        scene._linkTooltipStateId = 0
+        scene._linkTooltipAnchor = null
+        const linkTooltip = new Window_LinkTooltip()
+        linkTooltip.frontSpriteHue = 0
+        linkTooltip.backSpriteHue = 0
+        linkTooltip.backSpriteOpacity = 60
+        linkTooltip.backOpacity = 255
+        scene._linkTooltip = linkTooltip
+        scene.addChild(linkTooltip)
+
         // Party portraits load up front, so a battler tooltip's header
         // portrait is usually ready the first time it's drawn.
         for (const actor of $gameParty.members()) {
@@ -736,6 +934,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * @param {Scene_Base} scene
      * @param {Game_Battler} battler
      * @returns {boolean} true if shown now, false if queued behind a close
+     * @alias Scene_Battle.prototype.showTooltip
+     * @alias Scene_MenuBase.prototype.showTooltip
      */
     function showTooltip(scene, battler) {
         const tooltip = scene._stateTooltip
@@ -785,6 +985,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     /**
      * Closes the tooltip and cancels a queued battler swap.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.hideTooltip
+     * @alias Scene_MenuBase.prototype.hideTooltip
      */
     function hideTooltip(scene) {
         scene._stateTooltip.close()
@@ -808,9 +1010,11 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     }
 
     /**
-     * Shows a weapon/armor/item tooltip.
+     * Shows a weapon/armor/item/skill tooltip.
      * @param {Scene_Base} scene
      * @param {RPG.BaseItem} item
+     * @alias Scene_Battle.prototype.showItemTooltip
+     * @alias Scene_MenuBase.prototype.showItemTooltip
      */
     function showItemTooltip(scene, item) {
         scene._tooltipSwapBattler = null
@@ -831,7 +1035,11 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         scene.addChild(scene._stateTooltip)
     }
 
-    /** Turns gamepad tooltip browsing off and hides the tooltip. @param {Scene_Base} scene */
+    /** Turns gamepad tooltip browsing off and hides the tooltip.
+     * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.deactivateGamepadTooltip
+     * @alias Scene_MenuBase.prototype.deactivateGamepadTooltip
+     * */
     function deactivateGamepadTooltip(scene) {
         resetGamepadTooltip()
         scene._tooltipItemMode = false
@@ -847,6 +1055,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * when no anchor was found.
      * @param {Scene_Base} scene
      * @param {{x:number,y:number,width:number,height:number}|null} anchor
+     * @alias Scene_Battle.prototype.positionTooltipAt
+     * @alias Scene_MenuBase.prototype.positionTooltipAt
      */
     function positionTooltipAt(scene, anchor) {
         const tw = scene._stateTooltip.width
@@ -889,6 +1099,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * Shows and anchors the tooltip for whichever battler gamepadTooltip.index
      * currently points at.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.selectGamepadTooltipBattle
+     * @alias Scene_MenuBase.prototype.selectGamepadTooltipBattle
      */
     function selectGamepadTooltipBattler(scene) {
         const battler = gamepadTooltip.battlers[gamepadTooltip.index]
@@ -904,6 +1116,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * tooltip is for that row only, so Prev/Next don't apply); otherwise
      * falls back to cycling battler icons by hand.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.activateGamepadTooltip
+     * @alias Scene_MenuBase.prototype.activateGamepadTooltip
      */
     function activateGamepadTooltip(scene) {
         const itemWindow = findActiveItemWindow(scene)
@@ -931,6 +1145,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * once the cursor leaves that row, the row's item changes, or the
      * window stops being the active, on-screen list.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.updateGamepadItemTooltip
+     * @alias Scene_MenuBase.prototype.updateGamepadItemTooltip
      */
     function updateGamepadItemTooltip(scene) {
         const win = gamepadTooltip.itemWindow
@@ -1017,6 +1233,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * (while active) either defers to item-list tracking or validates/steps
      * through battlers with Prev/Next.
      * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.updateGamepadTooltip
+     * @alias Scene_MenuBase.prototype.updateGamepadTooltip
      */
     function updateGamepadTooltip(scene) {
         // TOGGLE BUTTON -----
@@ -1091,8 +1309,16 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     /** Frames the mouse must rest on a row before its tooltip opens. */
     const TOOLTIP_HOVER_DELAY_FRAMES = 15
 
-    /** @param {Scene_Base} scene */
+    /**
+     * @param {Scene_Base} scene
+     * @alias Scene_Battle.prototype.updateGamepadTooltip
+     * @alias Scene_MenuBase.prototype.updateGamepadTooltip
+     */
     function updateItemTooltipHover(scene) {
+        // LOCKED -----
+        // Skipped without touching any hover state, so the first frame
+        // after unlocking compares against what was shown before the lock.
+        if (isTooltipLocked(scene)) return
         let hoveredItem = null
         let hoveredWindow = null
         let hoveredIndex = -1
@@ -1174,6 +1400,199 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 }
             }
         }
+    }
+
+    //============================================================================//
+    //                        TOOLTIP LOCK & STATE LINKS                          //
+    //============================================================================//
+    // T (see TOOLTIP LOCK KEY) locks an open tooltip: it stops following the
+    // cursor and every mouse-hover detector leaves it alone, so the mouse can
+    // move onto it. While locked, hovering a state name drawn inside it (an
+    // \SL span, see processStateLink) opens scene._linkTooltip for that state.
+    // T again (or cancel / a click outside it, see LOCK DISMISS INPUT)
+    // unlocks; the detectors then pick up wherever the mouse is, so
+    // the tooltip closes unless the mouse is back on what opened it.
+
+    /**
+     * @param {Scene_Base} [scene=SceneManager._scene]
+     * @returns {boolean} true while the scene's main tooltip is locked
+     */
+    function isTooltipLocked(scene = SceneManager._scene) {
+        return !!(scene && scene._tooltipLocked)
+    }
+
+    /**
+     * Whether whatever opened the tooltip is still on screen, so a locked
+     * tooltip can't outlive the list or icon it belongs to.
+     * @param {Scene_Base} scene
+     * @returns {boolean}
+     */
+    function lockedTooltipSourceValid(scene) {
+        if (scene._tooltipItemMode) {
+            const win =
+                gamepadTooltip.active ?
+                    gamepadTooltip.itemWindow
+                :   scene._tooltipHoveredWindow
+            return !!win && isWindowUsableForTooltip(win)
+        }
+        return battlerTooltipStillValid(scene, scene._stateTooltip._battler)
+    }
+
+    /**
+     * Per-frame: toggles the lock on T (locking only a fully open tooltip),
+     * unlocks on a dismiss press (see LOCK DISMISS INPUT), releases it once
+     * the tooltip was closed by something else or lost its source, then
+     * updates the link tooltip.
+     * @param {Scene_Base} scene
+     */
+    function updateTooltipLock(scene) {
+        const tooltip = scene._stateTooltip
+        if (scene._tooltipLocked) {
+            if (
+                tooltipLockTriggered ||
+                tooltipUnlockRequested ||
+                !tooltip.tooltipActive
+            ) {
+                scene._tooltipLocked = false
+                tooltip._isLocked = false
+                tooltip._undimScreen()
+            } else if (!lockedTooltipSourceValid(scene)) {
+                scene._tooltipLocked = false
+                tooltip._isLocked = false
+                tooltip._undimScreen()
+                hideTooltip(scene)
+            }
+        } else if (
+            tooltipLockTriggered &&
+            tooltip.tooltipActive &&
+            tooltip.isOpen()
+        ) {
+            scene._tooltipLocked = true
+            tooltip._isLocked = true
+            tooltip._dimScreen()
+        }
+        updateLinkTooltip(scene)
+    }
+
+    /**
+     * The \SL rect in the locked tooltip the mouse is over.
+     * @param {Scene_Base} scene
+     * @returns {{stateId:number,x:number,y:number,width:number,height:number}|null}
+     *   rect in the main tooltip's contents space, or null
+     */
+    function hoveredStateLink(scene) {
+        const tooltip = scene._stateTooltip
+        if (!scene._tooltipLocked || !isMouseInUse() || !tooltip.isOpen()) {
+            return null
+        }
+        const touchPos = new Point(TouchInput.x, TouchInput.y)
+        const localPos =
+            tooltip._contentsSprite.worldTransform.applyInverse(touchPos)
+        return (
+            tooltip._stateLinkRects.find(
+                (rect) =>
+                    localPos.x >= rect.x &&
+                    localPos.x < rect.x + rect.width &&
+                    localPos.y >= rect.y &&
+                    localPos.y < rect.y + rect.height
+            ) || null
+        )
+    }
+
+    /**
+     * Per-frame: shows the hovered state link's tooltip, closing the current
+     * one first when the hovered state changes (or nothing is hovered).
+     * @param {Scene_Base} scene
+     */
+    function updateLinkTooltip(scene) {
+        const linkTooltip = scene._linkTooltip
+        const link = hoveredStateLink(scene)
+        const stateId = link ? link.stateId : 0
+        // SWAP -----
+        // Same close-then-open as the main tooltip: a change closes the
+        // current one, and the new state opens once openness reaches 0.
+        if (stateId !== scene._linkTooltipStateId) {
+            scene._linkTooltipStateId = stateId
+            scene._linkTooltipAnchor = link
+            linkTooltip.tooltipActive = false
+        }
+        // FOLLOW -----
+        // An open link tooltip is repositioned every frame; a closing one
+        // (tooltipActive false) stays put, like the main tooltip's
+        // FREEZE ON CLOSE.
+        if (linkTooltip.tooltipActive) {
+            positionLinkTooltip(scene, scene._linkTooltipAnchor)
+            return
+        }
+        const state = $dataStates[stateId]
+        if (!state || linkTooltip.openness > 0) return
+        linkTooltip.setupState(state)
+        linkTooltip.visible = true
+        linkTooltip.tooltipActive = true
+        // Back on top, in case the main tooltip was re-added after it.
+        scene.addChild(linkTooltip)
+        positionLinkTooltip(scene, scene._linkTooltipAnchor)
+    }
+
+    /**
+     * Places the link tooltip at the cursor, trying to fit to the right and below
+     * @param {Scene_Base} scene
+     */
+    function positionLinkTooltip(scene) {
+        const tw = scene._linkTooltip.width
+        const th = scene._linkTooltip.height
+
+        let x, y
+
+        const anchor = {
+            x: TouchInput.x + TOOLTIP_CURSOR_OFFSET_X,
+            y: TouchInput.y + TOOLTIP_CURSOR_OFFSET_Y,
+            width: 0,
+            height: 0,
+        }
+        if (anchor.x && anchor.y) {
+            // Y-AXIS - FLIP ABOVE/BELOW -----
+            const below = anchor.y + (anchor.height || 0) - TOOLTIP_ANCHOR_GAP_Y
+            const above = anchor.y + TOOLTIP_ANCHOR_GAP_Y - th
+            if (below + th <= Graphics.boxHeight) {
+                y = below
+            } else if (above >= 0) {
+                y = above
+            } else {
+                // Neither side fully fits - clamp to whichever is closest.
+                y =
+                    (
+                        Math.abs(Graphics.boxHeight - (below + th)) >
+                        Math.abs(above)
+                    ) ?
+                        above
+                    :   below
+            }
+
+            // X-AXIS - FLIP LEFT/RIGHT -----
+            const left = anchor.x + (anchor.width || 0) - TOOLTIP_ANCHOR_GAP_Y
+            const right = anchor.x + TOOLTIP_ANCHOR_GAP_X - tw
+            if (right >= 0) {
+                x = right
+            } else if (left + tw <= Graphics.boxWidth) {
+                x = left
+            } else {
+                // Neither side fully fits - clamp to whichever is closest.
+                x =
+                    (
+                        Math.abs(Graphics.boxWidth - (left + tw)) >
+                        Math.abs(right)
+                    ) ?
+                        right
+                    :   left
+            }
+        } else {
+            x = (Graphics.boxWidth - tw) / 2
+            y = (Graphics.boxHeight - th) / 2
+        }
+
+        scene._linkTooltip.x = Math.max(0, Math.min(x, Graphics.boxWidth - tw))
+        scene._linkTooltip.y = Math.max(0, Math.min(y, Graphics.boxHeight - th))
     }
 
     //============================================================================//
@@ -1427,7 +1846,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
     const _Scene_Battle_createAllWindows =
         Scene_Battle.prototype.createAllWindows
-    /** Creates the tooltip window after battle's own windows finish building. */
+    /** Creates the single and shared tooltip window after the battlers own windows has finished building. */
     Scene_Battle.prototype.createAllWindows = function () {
         _Scene_Battle_createAllWindows.call(this)
         createTooltipWindow(this)
@@ -1438,6 +1857,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     Scene_Battle.prototype.update = function () {
         _Scene_Battle_update.call(this)
         updateGamepadTooltip(this)
+        updateTooltipLock(this)
         updateItemTooltipHover(this)
         updateTooltipSwap(this)
         // Zero width/height tells positionTooltipAt to flip above/below right
@@ -1445,7 +1865,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         // FREEZE ON CLOSE -----
         // A closing tooltip (tooltipActive false) stays put - otherwise one
         // dismissed by gamepad would snap to the mouse for its close animation.
-        if (!this._stateTooltip.visible || !this._stateTooltip.tooltipActive) {
+        // A locked one stays put too, so the mouse can move onto it.
+        if (
+            !this._stateTooltip.visible ||
+            !this._stateTooltip.tooltipActive ||
+            this._tooltipLocked
+        ) {
             return
         }
         // BATTLE MENU ANCHOR -----
@@ -1468,51 +1893,6 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         }
     }
 
-    /** Delegates to {@link activateGamepadTooltip}. */
-    Scene_Battle.prototype.activateGamepadTooltip = function () {
-        activateGamepadTooltip(this)
-    }
-    /** Delegates to {@link deactivateGamepadTooltip}. */
-    Scene_Battle.prototype.deactivateGamepadTooltip = function () {
-        deactivateGamepadTooltip(this)
-    }
-    /** Delegates to {@link updateGamepadTooltip}. */
-    Scene_Battle.prototype.updateGamepadTooltip = function () {
-        updateGamepadTooltip(this)
-    }
-    /** Delegates to {@link positionTooltipAt}. */
-    Scene_Battle.prototype.positionTooltipAt = function (anchor) {
-        positionTooltipAt(this, anchor)
-    }
-    /** Delegates to {@link selectGamepadTooltipBattler}. */
-    Scene_Battle.prototype.selectGamepadTooltipBattler = function () {
-        selectGamepadTooltipBattler(this)
-    }
-    /** Delegates to {@link updateGamepadItemTooltip}. */
-    Scene_Battle.prototype.updateGamepadItemTooltip = function () {
-        updateGamepadItemTooltip(this)
-    }
-    /** Delegates to {@link createTooltipWindow}. */
-    Scene_Battle.prototype.createTooltipWindow = function () {
-        createTooltipWindow(this)
-    }
-    /** Delegates to {@link showTooltip}. */
-    Scene_Battle.prototype.showTooltip = function (battler) {
-        showTooltip(this, battler)
-    }
-    /** Delegates to {@link hideTooltip}. */
-    Scene_Battle.prototype.hideTooltip = function () {
-        hideTooltip(this)
-    }
-    /** Delegates to {@link showItemTooltip}. */
-    Scene_Battle.prototype.showItemTooltip = function (item) {
-        showItemTooltip(this, item)
-    }
-    /** Delegates to {@link updateItemTooltipHover}. */
-    Scene_Battle.prototype.updateItemTooltipHover = function () {
-        updateItemTooltipHover(this)
-    }
-
     const _Scene_MenuBase_create = Scene_MenuBase.prototype.create
     /** Creates the tooltip window after the menu scene's own windows finish building. */
     Scene_MenuBase.prototype.create = function () {
@@ -1525,12 +1905,14 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     Scene_MenuBase.prototype.update = function () {
         _Scene_MenuBase_update.call(this)
         updateGamepadTooltip(this)
+        updateTooltipLock(this)
         updateItemTooltipHover(this)
         updateTooltipSwap(this)
         // See FREEZE ON CLOSE in Scene_Battle.prototype.update.
         if (
             this._stateTooltip.visible &&
             this._stateTooltip.tooltipActive &&
+            !this._tooltipLocked &&
             !gamepadTooltip.active &&
             isMouseInUse()
         ) {
@@ -1541,51 +1923,6 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 height: 0,
             })
         }
-    }
-
-    /** Delegates to {@link activateGamepadTooltip}. */
-    Scene_MenuBase.prototype.activateGamepadTooltip = function () {
-        activateGamepadTooltip(this)
-    }
-    /** Delegates to {@link deactivateGamepadTooltip}. */
-    Scene_MenuBase.prototype.deactivateGamepadTooltip = function () {
-        deactivateGamepadTooltip(this)
-    }
-    /** Delegates to {@link updateGamepadTooltip}. */
-    Scene_MenuBase.prototype.updateGamepadTooltip = function () {
-        updateGamepadTooltip(this)
-    }
-    /** Delegates to {@link positionTooltipAt}. */
-    Scene_MenuBase.prototype.positionTooltipAt = function (anchor) {
-        positionTooltipAt(this, anchor)
-    }
-    /** Delegates to {@link selectGamepadTooltipBattler}. */
-    Scene_MenuBase.prototype.selectGamepadTooltipBattler = function () {
-        selectGamepadTooltipBattler(this)
-    }
-    /** Delegates to {@link updateGamepadItemTooltip}. */
-    Scene_MenuBase.prototype.updateGamepadItemTooltip = function () {
-        updateGamepadItemTooltip(this)
-    }
-    /** Delegates to {@link createTooltipWindow}. */
-    Scene_MenuBase.prototype.createTooltipWindow = function () {
-        createTooltipWindow(this)
-    }
-    /** Delegates to {@link showTooltip}. */
-    Scene_MenuBase.prototype.showTooltip = function (battler) {
-        showTooltip(this, battler)
-    }
-    /** Delegates to {@link hideTooltip}. */
-    Scene_MenuBase.prototype.hideTooltip = function () {
-        hideTooltip(this)
-    }
-    /** Delegates to {@link showItemTooltip}. */
-    Scene_MenuBase.prototype.showItemTooltip = function (item) {
-        showItemTooltip(this, item)
-    }
-    /** Delegates to {@link updateItemTooltipHover}. */
-    Scene_MenuBase.prototype.updateItemTooltipHover = function () {
-        updateItemTooltipHover(this)
     }
 
     //============================================================================//
@@ -1683,6 +2020,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             }
             return
         }
+        // See LOCKED in updateItemTooltipHover.
+        if (isTooltipLocked()) return
 
         const touchPos = new Point(TouchInput.x, TouchInput.y)
         const localPos =
@@ -1737,6 +2076,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
     /** Fires onMouseEnter/onMouseExit as the mouse moves on/off the icon. */
     Sprite_StateIcon.prototype.processTouch = function () {
+        // See LOCKED in updateItemTooltipHover.
+        if (isTooltipLocked()) return
         if (isMouseInUse() && this.isBeingTouched()) {
             if (!this._hovered && TouchInput.isHovered()) {
                 this._hovered = true
@@ -1791,12 +2132,13 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     //                          WINDOW_STATETOOLTIP                               //
     //============================================================================//
 
-    function Window_StateTooltip() {
-        this.initialize(...arguments)
-    }
-
-    Window_StateTooltip.prototype = Object.create(Window_Selectable.prototype)
-    Window_StateTooltip.prototype.constructor = Window_StateTooltip
+    // CLASS SYNTAX -----
+    // Declared as a class only so VS Code sees the inheritance (it doesn't
+    // follow Object.create); runtime is the same - Window_Selectable's
+    // constructor calls this.initialize(), which resolves to the methods
+    // below. Not hoisted like a function, so it can't be used above here
+    // at load time (createTooltipWindow only runs later, from a scene).
+    class Window_StateTooltip extends Window_Selectable {}
 
     const _Window_openness = Object.getOwnPropertyDescriptor(
         Window.prototype,
@@ -1821,6 +2163,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         )
         this.visible = false
         this.tooltipActive = false
+        this._isLocked = false
         this.opacity = 0
         this.contentsOpacity = 0
         this.fadeSpeed = 42
@@ -1844,6 +2187,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this._typewriterQueue = []
         /** @type {object|null} textState of the entry currently being typed */
         this._typewriterState = null
+        /** @type {{stateId:number, x:number, y:number, width:number, height:number}[]} drawn \SL spans, contents space (see processStateLink) */
+        this._stateLinkRects = []
     }
     // FADE DIRECTION -----
     // tooltipActive (what the tooltip should be doing) picks the direction;
@@ -1864,7 +2209,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 this.visible = false
                 return
             } else {
-                this.opacity = 255
+                this.opacity = this.viewOpacity()
                 this.visible = true
                 this.open()
                 return
@@ -1919,6 +2264,247 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this._backSprite.setHue(this.backSpriteHue)
         this._frameSprite.setHue(this.frontSpriteHue)
         this._backSprite.children[0].opacity = this.backSpriteOpacity
+    }
+
+    /**
+     * Window opacity for a fully shown tooltip (_backSprite + _frameSprite)
+     * @returns {number} 0-255
+     */
+    Window_StateTooltip.prototype.viewOpacity = function () {
+        return 255
+    }
+
+    //---------------------------MENU FILTER WRAPPER--------------------------//
+    // WindowLayer replaces PIXI's render() with a stencil-based one that never
+    // reads this.filters, so a filter set on the layer itself is ignored. In
+    // menu scenes the layer is moved into a plain Container, which applies
+    // _windowLayerWrapper.filters normally and then lets the layer render
+    // itself inside the filter pass. Same draw position in the scene.
+    const _Scene_MenuBase_createWindowLayer =
+        Scene_MenuBase.prototype.createWindowLayer
+    Scene_MenuBase.prototype.createWindowLayer = function () {
+        _Scene_MenuBase_createWindowLayer.call(this)
+        const layer = this._windowLayer
+        const index = this.getChildIndex(layer)
+        this._windowLayerWrapper = new PIXI.Container()
+        this._windowLayerWrapper.update = () => layer.update()
+        this.removeChild(layer)
+
+        this._windowLayerWrapper.addChild(layer)
+        this.addChildAt(this._windowLayerWrapper, index)
+    }
+
+    const _Scene_MenuBase_prototype_update = Scene_MenuBase.prototype.update
+    Scene_MenuBase.prototype.update = function () {
+        _Scene_MenuBase_prototype_update.call(this)
+        this.updatePageButtons()
+        this.updateLockedBackground()
+    }
+    Scene_MenuBase.prototype.updateLockedBackground = function () {
+        if (this._tooltipLocked) {
+            for (const target of dimTargets()) {
+                target.interactive = false
+                target.interactiveChildren = false
+                target.accessible = false
+                target.accessibleChildren = false
+                if (
+                    !!window.WauLau &&
+                    !window.WauLau.GamePad.isGamePadActive()
+                ) {
+                    document.documentElement.style.cursor = "crosshair"
+                }
+            }
+        } else {
+            for (const target of dimTargets()) {
+                target.interactive = true
+                target.interactiveChildren = true
+                target.accessible = true
+                target.accessibleChildren = true
+                if (
+                    !!window.WauLau &&
+                    !window.WauLau.GamePad.isGamePadActive()
+                ) {
+                    document.documentElement.style.cursor = "auto"
+                }
+            }
+        }
+    }
+
+    function dimTargets() {
+        const scene = SceneManager._scene
+        return [scene._windowLayerWrapper, scene._backgroundSprite].filter(
+            Boolean
+        )
+    }
+
+    Window_StateTooltip.prototype._getFilter = function () {
+        if (!this._dimFilter) {
+            this._dimFilter = new PIXI.filters.AdjustmentFilter()
+            this._dimFilter.gamma = 0.8
+            this._dimFilter.saturation = 0.7
+        }
+        return this._dimFilter
+    }
+
+    Window_StateTooltip.prototype._dimScreen = function () {
+        const filter = this._getFilter()
+        for (const target of dimTargets()) {
+            target.interactive = false
+            target.interactiveChildren = false
+            target.accessible = false
+            target.accessibleChildren = false
+            const filters = target.filters || []
+            if (!filters.includes(filter))
+                target.filters = filters.concat(filter)
+        }
+    }
+
+    Window_StateTooltip.prototype._undimScreen = function () {
+        if (!this._dimFilter) return
+        for (const target of dimTargets()) {
+            target.interactive = true
+            target.interactiveChildren = true
+            target.accessible = true
+            target.accessibleChildren = true
+            if (target.filters) {
+                target.filters = target.filters.filter(
+                    (f) => f !== this._dimFilter
+                )
+            }
+        }
+    }
+
+    //============================================================================//
+    //                            WINDOW LINK TOOLTIP                             //
+    //============================================================================//
+
+    // See CLASS SYNTAX at Window_StateTooltip.
+    class Window_LinkTooltip extends Window_StateTooltip {}
+
+    Window_LinkTooltip.prototype.initialize = function () {
+        Window_StateTooltip.prototype.initialize.call(this)
+        this.frontSpriteHue = 60
+        this.backSpriteHue = 0
+        // SKIN LUMINANCE -----
+        // Window.png is dark: background 0.00-0.14, frame's outer double
+        // line ~0.25-0.30, its inner bevel/pattern 0.05-0.15. Each cutoff
+        // has to sit in a gap of its own sprite's art, hence two filters.
+        /** Background: everything below 0.5, so solid black. */
+        this._backBlackWhiteFilter = new BlackWhiteFilter(0.35, 0.33)
+        /** Frame: 0.2 splits the outer lines (white) from the bevel (black). */
+        this._frameBlackWhiteFilter = new BlackWhiteFilter(0.25, 0.2)
+        this.setBackgroundType(1)
+    }
+
+    /**
+     * Sprites the black & white filters are applied to, each with its own
+     * filter (see SKIN LUMINANCE). Add [this, filter] instead to also turn
+     * the text and icons black and white.
+     * @returns {[PIXI.DisplayObject, BlackWhiteFilter][]}
+     */
+    Window_LinkTooltip.prototype.blackWhiteTargets = function () {
+        return [
+            [this._backSprite, this._backBlackWhiteFilter],
+            [this._frameSprite, this._frameBlackWhiteFilter],
+        ]
+    }
+
+    /**
+     * Window opacity for a fully shown tooltip (_backSprite + _frameSprite)
+     * @returns {number} 0-255
+     */
+    Window_LinkTooltip.prototype.viewOpacity = function () {
+        return 255
+    }
+
+    Window_LinkTooltip.prototype.renderEntries = function (rawEntries) {
+        Window_StateTooltip.prototype.renderEntries.call(this, rawEntries)
+        //this.showBackgroundDimmer()
+        // APPEND, DON'T REPLACE -----
+        // Sprite.setHue keeps its own ColorFilter in the same list, so the
+        // B/W filter goes after it (the hue shift runs first, then flattens).
+        for (const [target, filter] of this.blackWhiteTargets()) {
+            const filters = target.filters || []
+            if (!filters.includes(filter)) {
+                target.filters = filters.concat(filter)
+            }
+        }
+    }
+    Window_StateTooltip.prototype.updateBackground = function () {
+        this._background = 0
+        this._backSprite.alpha = 1
+        this._frameSprite.alpha = 1
+        this.setBackgroundType(this._background)
+    }
+
+    Window_StateTooltip.prototype.refreshDimmerBitmap = function () {
+        if (this._dimmerSprite) {
+            const bitmap = this._dimmerSprite.bitmap
+            const w = this.width > 0 ? this.width + 8 : 0
+            const h = this.height
+            const border = this.padding
+            const borderCol = "#942C40"
+            const fillCol = "#231521c7"
+            bitmap.resize(w, h)
+            bitmap.strokeBorder(0, 0, w, h, borderCol, border)
+            bitmap.fillRect(
+                border,
+                border,
+                w - border * 2,
+                h - border * 2,
+                fillCol
+            )
+            this._dimmerSprite.setFrame(0, 0, w, h)
+        }
+    }
+
+    /**
+     * Draws the specified rectangular frame.
+     *
+     * @param {number} x - The x coordinate for the upper-left corner.
+     * @param {number} y - The y coordinate for the upper-left corner.
+     * @param {number} width - The width of the rectangle to fill.
+     * @param {number} height - The height of the rectangle to fill.
+     * @param {string} color - The color of the rectangle in CSS format.
+     * @param {number} [borderWidth = 1] - The Width of the border
+     */
+    Bitmap.prototype.strokeBorder = function (
+        x,
+        y,
+        width,
+        height,
+        color,
+        borderWidth = 1
+    ) {
+        const context = this.context
+        context.save()
+        context.strokeStyle = color
+        context.lineWidth = borderWidth
+        context.strokeRect(x, y, width, height)
+        context.restore()
+        this._baseTexture.update()
+    }
+
+    /**
+     * Builds and renders a single state's tooltip with no battler behind it
+     * (a state linked from another tooltip): \TR/\SR show the state's base
+     * duration, {expressions} their percent form.
+     * @param {RPG.State} state
+     */
+    Window_LinkTooltip.prototype.setupState = function (state) {
+        this._battler = null
+        this._item = null
+        this.updateBackground()
+        // Set before measuring too, so \TRT is measured as it's drawn.
+        this._state = state
+        this.renderEntries([
+            {
+                state,
+                text:
+                    stateTooltipText(state, null) ||
+                    `\x1bST[1]${state.name}\x1bST[0]\x1bI[${state.iconIndex}]`,
+            },
+        ])
     }
 
     // --------------------------------TEXT WRAPPING-------------------------------//
@@ -2170,7 +2756,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             this.opacity = 0
             this.contentsOpacity = 0
         } else if (this._useOpenAnimation) {
-            this.opacity = 255
+            this.opacity = this.viewOpacity()
             this.contentsOpacity = 255
         }
 
@@ -2179,6 +2765,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
         this._typewriterQueue = []
         this._typewriterState = null
+        this._stateLinkRects = []
         let y = 0
         for (const entry of entries) {
             if (entry.face) this.drawTooltipPortrait(entry.face, left, y)
@@ -3405,7 +3992,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      *   equal; pass null to always merge a group's variants
      * @param {{mergeAll?: boolean}} [options]
      * @returns {{state: RPG.State, name: string, value: *, values: *[]}[]}
-     *   value is the lowest variant's value; values has one per variant
+     *   value is the lowest variant's value; values has one per variant;
+     *   name is wrapped in a state link (see stateLinkText)
      */
     function mergeStateVariations(entries, { mergeAll = false } = {}) {
         const merged = []
@@ -3447,7 +4035,22 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                     variants[0].state.name
                 :   `${variants[0].group} ${variants.map((v) => v.label).join(",")}`
         }
+        for (const entry of merged) {
+            entry.name = stateLinkText(entry.state, entry.name)
+        }
         return merged
+    }
+
+    /**
+     * Wraps text in \SL so a locked tooltip can open the state's own tooltip
+     * from it (see STATE LINKS). Hidden states stay plain text.
+     * @param {RPG.State} state
+     * @param {string} text
+     * @returns {string}
+     */
+    function stateLinkText(state, text) {
+        if (isStateTooltipHidden(state)) return text
+        return `\\SL[${state.id}]\\UL[1]${text}\\UL[0]\\SL[0]`
     }
 
     /**
@@ -3836,6 +4439,26 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 }\x1bDE[0]`
             )
             t = t.replace(/\x1bSR/gi, stepsRemain)
+        } else if (this._state) {
+            // BASE DURATION -----
+            // No battler (a linked state, see setupState): shows how long
+            // the state lasts once applied, instead of what's left.
+            const state = this._state
+            const turns =
+                state.autoRemovalTiming === 0 ? "∞"
+                : state.minTurns === state.maxTurns ? `${state.minTurns}`
+                : `${state.minTurns}~${state.maxTurns}`
+            t = t.replace(
+                /\x1bTRT/gi,
+                `\x1bDE[1]Lasts ${turns} ${turns === "1" ? "turn" : "turns"}\x1bDE[0]`
+            )
+            t = t.replace(/\x1bTR/gi, turns)
+            const steps = state.removeByWalking ? `${state.stepsToRemove}` : "∞"
+            t = t.replace(
+                /\x1bSRT/gi,
+                `\x1bDE[1]Lasts ${steps} ${steps === "1" ? "step" : "steps"}\x1bDE[0]`
+            )
+            t = t.replace(/\x1bSR/gi, steps)
         }
 
         return t
@@ -3878,7 +4501,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * This plugin's escape codes on top of the engine's: the [1]/[0] style
      * toggles \BI, \BS, \BSD, \B (bold variants), \IT (italic), \LB (label),
      * \ST (subtitle), \TI (title), \DE (description), plus \> (right-align),
-     * \JU/\JG (justified lists) and text-sized icons \I/\J.
+     * \JU/\JG (justified lists), \SL (state links) and text-sized icons \I/\J.
      * @param {string} code
      * @param {object} textState
      */
@@ -3986,6 +4609,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                     on ?
                         `${hexColorMapManager(labelOutlineColor)}`
                     :   NORMAL_OUTLINE_COLOR
+                this.contents._context.borderBottom = "4px solid #ffffff"
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
@@ -4035,6 +4659,17 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 }
                 break
             }
+            case "UL": {
+                const on = !!this.obtainEscapeParam(textState)
+                // Measuring passes (textSizeEx) must not paint anything.
+                if (!textState.drawing) break
+                if (on) {
+                    this.startUnderline(textState)
+                } else {
+                    this.endUnderline(textState)
+                }
+                break
+            }
             case ">": {
                 this.processRightAlign(textState)
                 break
@@ -4045,6 +4680,13 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             }
             case "JG": {
                 this.processJustifyGap(textState)
+                break
+            }
+            case "SL": {
+                this.processStateLink(
+                    Number(this.obtainEscapeParam(textState)) || 0,
+                    textState
+                )
                 break
             }
             // Handled here instead of in default, which resets the font -
@@ -4139,6 +4781,113 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             this.drawTooltipIcon(iconIndex, textState, textState.x, size)
         }
         textState.x += size
+    }
+
+    // UNDERLINE (\UL) -----------------------------
+    // Draws an underline as a two rects under the text. One is filled with statColor,
+    // the other one is a few pixels larger and has the outline color.
+
+    /** Pixels between the text's baseline and the top of the bar. */
+    const UNDERLINE_GAP = 2
+    /** Height of the statColor bar, outline excluded. */
+    const UNDERLINE_THICKNESS = 2
+    /** Width of the boldOutlineColor border on every side of the bar. */
+    const UNDERLINE_BORDER_WIDTH = 2
+
+    /** Remembers where \UL[1] started, and the baseline of the text there.
+     * @param {object} textState
+     */
+    Window_StateTooltip.prototype.startUnderline = function (textState) {
+        // Same baseline formula as Bitmap.drawText.
+        const baseline =
+            textState.y + textState.height / 2 + this.contents.fontSize * 0.35
+        this._underlineStart = { x: textState.x, baseline }
+    }
+
+    /** Draws the bar from \UL[1](the saved textState.x and baseline) to the current x,y.
+     *  @param {object} textState
+     */
+    Window_StateTooltip.prototype.endUnderline = function (textState) {
+        const start = this._underlineStart
+        this._underlineStart = null
+        if (!start) return
+        const x = Math.round(start.x)
+        const width = Math.round(textState.x) - x
+        if (width <= 0) return
+        const y =
+            Math.round(start.baseline) + UNDERLINE_GAP + UNDERLINE_BORDER_WIDTH
+        const border = UNDERLINE_BORDER_WIDTH
+        // fillRect(x, y, width, height, color)
+        // Draw the outline which is a larger rect below the main outline
+        this.contents.fillRect(
+            x, // - border,
+            y - border,
+            width, //+ border * 2,
+            UNDERLINE_THICKNESS, //+ border * 2,
+            hexColorMapManager(statColor)
+        )
+        // Draw the main outline which is smaller than the outline and sits on top
+        this.contents.fillRect(
+            x,
+            y,
+            width,
+            UNDERLINE_THICKNESS,
+            resolveTextColor(boldOutlineColor)
+        )
+    }
+
+    // STATE LINKS (\SL) -----------------------------
+    // \SL[stateId] ... \SL[0] marks text as a link to that state's tooltip
+    // (see TOOLTIP LOCK & STATE LINKS). The drawing pass records each span's
+    // rect, in contents space, into _stateLinkRects; a span that wraps onto
+    // the next line is split into one rect per line. Measuring passes treat
+    // it as zero-width and record nothing.
+    // FLUSH ORDER -----
+    // Escape codes and \n are processed only after the text before them was
+    // flushed, so textState.x is already past that text when a span opens or
+    // closes.
+
+    /**
+     * Handles \SL[n]: ends the open link span, if any, and for n > 0 opens
+     * a new one for state n at the current position.
+     * @param {number} stateId
+     * @param {object} textState
+     */
+    Window_StateTooltip.prototype.processStateLink = function (
+        stateId,
+        textState
+    ) {
+        if (!textState.drawing) return
+        this.closeStateLinkSpan(textState)
+        if (stateId > 0) textState.stateLink = { stateId, x: textState.x }
+    }
+
+    /**
+     * Records the open link span's rect, from where it opened to the current
+     * x on the current line, and closes it.
+     * @param {object} textState
+     */
+    Window_StateTooltip.prototype.closeStateLinkSpan = function (textState) {
+        const link = textState.drawing && textState.stateLink
+        if (!link) return
+        textState.stateLink = null
+        if (textState.x <= link.x) return
+        this._stateLinkRects.push({
+            stateId: link.stateId,
+            x: link.x,
+            y: textState.y,
+            width: textState.x - link.x,
+            height: textState.height,
+        })
+    }
+
+    /** Splits an open \SL span at a line break, so each line gets its own rect. */
+    Window_StateTooltip.prototype.processNewLine = function (textState) {
+        const link = textState.drawing && textState.stateLink
+        this.closeStateLinkSpan(textState)
+        Window_Selectable.prototype.processNewLine.call(this, textState)
+        if (link)
+            textState.stateLink = { stateId: link.stateId, x: textState.x }
     }
 
     // RIGHT-ALIGN (\>) -----------------------------
@@ -4704,5 +5453,106 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this.move(base.x, this.y, base.width, base.height)
         this.createContents()
         this._dialogueShopBaseRect = null
+    }
+
+    //============================================================================//
+    //                                 DELEGATES                                  //
+    //============================================================================//
+    // This is purely for IDE navigation and QOL so VScode's "Go To Definition",
+    //  "Show Implementation" etc. works, as it doesn't really work with prototypes.
+    //
+    // Instead of making the logic inside the prototypes, we instead just call a function
+    // that shares the same name
+
+    // ------------------------------SCENE_BATTLE------------------------------- //
+    //** Delegates to {@link activateGamepadTooltip}. */
+    Scene_Battle.prototype.activateGamepadTooltip = function () {
+        activateGamepadTooltip(this)
+    }
+    /** Delegates to {@link deactivateGamepadTooltip}. */
+    Scene_Battle.prototype.deactivateGamepadTooltip = function () {
+        deactivateGamepadTooltip(this)
+    }
+    /** Delegates to {@link updateGamepadTooltip}. */
+    Scene_Battle.prototype.updateGamepadTooltip = function () {
+        updateGamepadTooltip(this)
+    }
+    /** Delegates to {@link positionTooltipAt}. */
+    Scene_Battle.prototype.positionTooltipAt = function (anchor) {
+        positionTooltipAt(this, anchor)
+    }
+    /** Delegates to {@link selectGamepadTooltipBattler}. */
+    Scene_Battle.prototype.selectGamepadTooltipBattler = function () {
+        selectGamepadTooltipBattler(this)
+    }
+    /** Delegates to {@link updateGamepadItemTooltip}. */
+    Scene_Battle.prototype.updateGamepadItemTooltip = function () {
+        updateGamepadItemTooltip(this)
+    }
+    /** Delegates to {@link createTooltipWindow}. */
+    Scene_Battle.prototype.createTooltipWindow = function () {
+        createTooltipWindow(this)
+    }
+    /** Delegates to {@link showTooltip}. */
+    Scene_Battle.prototype.showTooltip = function (battler) {
+        showTooltip(this, battler)
+    }
+    /** Delegates to {@link hideTooltip}. */
+    Scene_Battle.prototype.hideTooltip = function () {
+        hideTooltip(this)
+    }
+    /** Delegates to {@link showItemTooltip}. */
+    Scene_Battle.prototype.showItemTooltip = function (item) {
+        showItemTooltip(this, item)
+    }
+    /** Delegates to {@link updateItemTooltipHover}. */
+    Scene_Battle.prototype.updateItemTooltipHover = function () {
+        updateItemTooltipHover(this)
+    }
+
+    // -----------------------------SCENE_MENUBASE------------------------------ //
+    /** Delegates to {@link activateGamepadTooltip}. */
+    Scene_MenuBase.prototype.activateGamepadTooltip = function () {
+        activateGamepadTooltip(this)
+    }
+    /** Delegates to {@link deactivateGamepadTooltip}. */
+    Scene_MenuBase.prototype.deactivateGamepadTooltip = function () {
+        deactivateGamepadTooltip(this)
+    }
+    /** Delegates to {@link updateGamepadTooltip}. */
+    Scene_MenuBase.prototype.updateGamepadTooltip = function () {
+        updateGamepadTooltip(this)
+    }
+    /** Delegates to {@link positionTooltipAt}. */
+    Scene_MenuBase.prototype.positionTooltipAt = function (anchor) {
+        positionTooltipAt(this, anchor)
+    }
+    /** Delegates to {@link selectGamepadTooltipBattler}. */
+    Scene_MenuBase.prototype.selectGamepadTooltipBattler = function () {
+        selectGamepadTooltipBattler(this)
+    }
+    /** Delegates to {@link updateGamepadItemTooltip}. */
+    Scene_MenuBase.prototype.updateGamepadItemTooltip = function () {
+        updateGamepadItemTooltip(this)
+    }
+    /** Delegates to {@link createTooltipWindow}. */
+    Scene_MenuBase.prototype.createTooltipWindow = function () {
+        createTooltipWindow(this)
+    }
+    /** Delegates to {@link showTooltip}. */
+    Scene_MenuBase.prototype.showTooltip = function (battler) {
+        showTooltip(this, battler)
+    }
+    /** Delegates to {@link hideTooltip}. */
+    Scene_MenuBase.prototype.hideTooltip = function () {
+        hideTooltip(this)
+    }
+    /** Delegates to {@link showItemTooltip}. */
+    Scene_MenuBase.prototype.showItemTooltip = function (item) {
+        showItemTooltip(this, item)
+    }
+    /** Delegates to {@link updateItemTooltipHover}. */
+    Scene_MenuBase.prototype.updateItemTooltipHover = function () {
+        updateItemTooltipHover(this)
     }
 })()

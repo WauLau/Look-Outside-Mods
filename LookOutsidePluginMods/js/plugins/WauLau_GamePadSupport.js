@@ -39,6 +39,7 @@
         // SYNTHETIC MOVES -----
         // Chromium can fire mousemove without the cursor moving, so a
         // hover only counts if the position actually changed.
+        if (!TouchInput || !TouchInput._currentState) return
         const moved =
             (TouchInput.isMoved() || TouchInput.isHovered()) &&
             (TouchInput.x !== lastMouseX || TouchInput.y !== lastMouseY)
@@ -51,7 +52,11 @@
             TouchInput.wheelY !== 0
         ) {
             mouseInUse = true
-        } else if (Input._latestButton && Input._pressedTime === 0) {
+        } else if (
+            !!GamePad.activeGamepad() &&
+            Input._latestButton &&
+            Input._pressedTime === 0
+        ) {
             mouseInUse = false
         }
         // CURSOR VISIBILITY -----
@@ -65,6 +70,20 @@
     SceneManager.updateInputData = function () {
         _SceneManager_updateInputData.call(this)
         updateMouseOwnership()
+    }
+
+    const GamePad = {
+        isGamePadActive() {
+            return !mouseInUse
+        },
+        /** @returns {Gamepad|null} first connected pad that can rumble (fresh snapshot) */
+        activeGamepad() {
+            const pads = navigator.getGamepads ? navigator.getGamepads() : []
+            for (const pad of pads) {
+                if (pad && pad.connected && pad.vibrationActuator) return pad
+            }
+            return null
+        },
     }
     //============================================================================//
     //                               RUMBLE ENGINE                                //
@@ -86,22 +105,13 @@
     }
 
     const GamePad_Rumble = {
-        /** @returns {Gamepad|null} first connected pad that can rumble (fresh snapshot) */
-        gamepad() {
-            const pads = navigator.getGamepads ? navigator.getGamepads() : []
-            for (const pad of pads) {
-                if (pad && pad.connected && pad.vibrationActuator) return pad
-            }
-            return null
-        },
-
         /**
          * @param {"Ping"|"Tap"|"Short"|"Medium"|"Long"|"VeryLong"|"Explosive"|"Earthquake"} [type="Medium"]
          * @returns {boolean} false when no rumble-capable pad is connected or mouse is in use
          */
         play(type = "Medium", delay = 0) {
             if (mouseInUse) return false
-            const pad = this.gamepad()
+            const pad = GamePad.activeGamepad()
             if (!pad) return false
             const preset = RUMBLE_PRESETS[type] || RUMBLE_PRESETS.Medium
             pad.vibrationActuator
@@ -252,4 +262,5 @@
 
     window.WauLau = window.WauLau || {}
     window.WauLau.Rumble = GamePad_Rumble
+    window.WauLau.GamePad = GamePad
 })()

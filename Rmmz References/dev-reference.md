@@ -2,10 +2,10 @@
 
 ## Structure
 
-#### WindowState_ToolTip Object
+#### WindowState\_ToolTip Object
 
-The `WindowState_ToolTip` function is a constructor that links to `WindowStateToolTip.prototype`
-`WindowState_ToolTip` extends from `Window_Selectable`
+The `WindowState_ToolTip` function is a constructor that links to `WindowStateToolTip.prototype`  
+`WindowState_ToolTip` extends from `Window_Selectable`  
 For reference, the full nested hierarchy of prototypes is;
 
 ```
@@ -15,6 +15,6 @@ this.
         └─▶ Window_Scrollable.prototype
             └─▶ Window_Base.prototype
                 └─▶ Window.prototype
-                    └─▶ PIXI.Container.prototype 
+                    └─▶ PIXI.Container.prototype
                         └─▶ (...)
 ```
