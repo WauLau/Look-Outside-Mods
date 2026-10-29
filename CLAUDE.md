@@ -71,8 +71,8 @@ Sections: `states` (`{name, text: [...], hide?}`), and `items`/`weapons`/`armors
 
 - `\TLINK[<id><TYPE>]…\TLINK[0]` (e.g. `\TLINK[7STATE]Rage\TLINK[0]`) makes text hoverable while the main tooltip is locked (T), opening `Window_LinkTooltip` (`scene._linkTooltip`). Parsed by `Window_Base.prototype.obtainExtendedEscapeParam` → `{digits, text}` (TYPE upper-cased). The engine's `obtainEscapeCode` matches `[A-Z]+`, so multi-letter codes like `TLINK` are fine.
 - The type is renamed at each hop: escape param `.text` → open span `textState.tooltipLink.type` → `_tooltipLinkRects[].linkValueType` → `Window_LinkTooltip._linkValueType`. Keep every hop (and the rect `@type` JSDoc) in sync — a mismatched key fails silently as `undefined`.
-- Set `_linkValueType` _before_ `setupState`: it renders and draws the dimmer bitmap (accent from `LINK_TOOLTIP_ACCENT_COLORS`) immediately.
-- Only `STATE` is implemented: `updateLinkTooltip` always looks up `$dataStates[itemId]`, and its swap check compares the id only, not the type.
+- Open links through `Window_LinkTooltip.setupLink(type, id)`: it sets `_linkValueType` before rendering, since rendering draws the dimmer bitmap (accent from `LINK_TOOLTIP_ACCENT_COLORS`) immediately. `STATE` → `setupState`; any other type → `setupExplainer` with its `LinkExplainers[TYPE][id]` entry in `WauLau_TooltipData.json`.
+- Param links use three types because the engine ids overlap: `PARAM` 0–7, `XPARAM` 0–9, `SPARAM` 0–9 (`2PARAM` = Atk, `2XPARAM` = Crit). The swap check in `updateLinkTooltip` compares id _and_ type. Generated stat lines link via `explainerLinkText`, only when an entry exists.
 
 ### Verifying plugin JS edits
 

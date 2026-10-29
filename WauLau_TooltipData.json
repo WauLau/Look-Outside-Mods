@@ -3140,5 +3140,130 @@
                 "\\LB[1]Immune To:\\LB[0] User cannot be affected by Scriv2, Scriv3, Scriv4, or Scriv5"
             ]
         }
+    },
+    "LinkExplainers": {
+        "PARAM": {
+            "0": {
+                "name": "Max HP",
+                "icon": 515,
+                "text": ["Damage that can be taken before falling unconscious."]
+            },
+            "1": {
+                "name": "Max Stamina",
+                "icon": 23,
+                "text": ["Stamina pool that skills spend."]
+            },
+            "2": {
+                "name": "Attack",
+                "icon": 678,
+                "text": [
+                    "\\LB[1]Melee:\\LB[0] Raises damage dealt by melee attacks.",
+                    "Weighed against the target's \\BS[1]Defense\\BS[0]."
+                ]
+            },
+            "3": {
+                "name": "Defense",
+                "icon": 859,
+                "text": ["\\LB[1]Melee:\\LB[0] Lowers damage taken from melee attacks."]
+            },
+            "4": {
+                "name": "Ballistics",
+                "icon": 192,
+                "text": [
+                    "\\LB[1]Ballistic:\\LB[0] Raises damage dealt by ballistic attacks.",
+                    "Weighed against the target's \\BS[1]Bull.Defense\\BS[0]."
+                ]
+            },
+            "5": {
+                "name": "Bullet Defense",
+                "icon": 852,
+                "text": ["\\LB[1]Ballistic:\\LB[0] Lowers damage taken from ballistic attacks."]
+            },
+            "6": {
+                "name": "Agility",
+                "icon": 86,
+                "text": [
+                    "\\LB[1]Speed:\\LB[0] Higher Agility acts earlier in the turn.",
+                    "Some skills also scale with it."
+                ]
+            },
+            "7": {
+                "name": "Luck",
+                "icon": 580,
+                "text": [
+                    "\\LB[1]Crits:\\LB[0] Ranged crit chance \\BS[1]+Luck%\\BS[0], melee \\BS[1]+Luck/2 %\\BS[0]",
+                    "\\LB[1]Durability:\\LB[0] Lowers the chance of a weapon breaking",
+                    "\\LB[1]Word Skill:\\LB[0] \\BS[1]+Luck/2\\BS[0]",
+                    "\\LB[1]Status:\\LB[0] Raises the odds of inflicting states, and lowers the odds of receiving them"
+                ]
+            }
+        },
+        "XPARAM": {
+            "0": {
+                "name": "Hit Rate",
+                "icon": 40,
+                "text": ["Chance for melee attacks to land."]
+            },
+            "1": {
+                "name": "Evasion",
+                "icon": 861,
+                "text": ["Chance to dodge melee attacks."]
+            },
+            "2": {
+                "name": "Critical Rate",
+                "icon": 275,
+                "text": [
+                    "Chance for melee attacks to land a critical hit.",
+                    "Ranged crits use the weapon's accuracy and \\BS[1]Luck\\BS[0] instead."
+                ]
+            },
+            "3": {
+                "name": "Critical Evasion",
+                "icon": 1098,
+                "text": ["Lowers the chance of being hit by melee critical hits."]
+            },
+            "4": {
+                "name": "Ballistic Evasion",
+                "text": ["Chance to dodge ballistic attacks."]
+            },
+            "5": {
+                "name": "Ballistic Reflection",
+                "text": ["Chance to send a ballistic attack back at its user."]
+            },
+            "6": {
+                "name": "Counter",
+                "icon": 733,
+                "text": ["Chance to answer a melee attack with a counterattack."]
+            },
+            "7": {
+                "name": "HP Regen",
+                "text": ["Percent of \\BS[1]Max HP\\BS[0] regained each turn. Negative values deal damage instead."]
+            },
+            "8": {
+                "name": "Stamina Regen",
+                "text": ["Percent of \\BS[1]Max Stamina\\BS[0] regained each turn."]
+            },
+            "9": {
+                "name": "Ammo Regen",
+                "text": ["Ammo regained each turn."]
+            }
+        },
+        "SPARAM": {
+            "0": {
+                "name": "Target Rate",
+                "icon": 13,
+                "text": ["How likely enemies are to pick this character as a target."]
+            },
+            "6": {
+                "name": "Damage Taken",
+                "icon": 73,
+                "text": ["Multiplies all melee damage taken."]
+            },
+            "7": {
+                "name": "Ballistic Damage Taken",
+                "icon": 73,
+                "text": ["Multiplies all ballistic damage taken."]
+            }
+        }
     }
 }

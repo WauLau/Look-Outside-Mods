@@ -71,6 +71,19 @@
  * also unlocks by itself once whatever it belongs to leaves the screen.
  * State names in generated lines are linked automatically; hand-written
  * text can link one with \TLINK (see below).
+ * Other link types (params, ex-params, sp-params) open an explainer from the
+ * "LinkExplainers" section, keyed by link type, then id:
+ *   "LinkExplainers": {
+ *       "PARAM": {                         (PARAM 0-7, XPARAM 0-9, SPARAM 0-9)
+ *           "2": {
+ *               "name": "Attack",          (shown as the title)
+ *               "icon": 678,               (optional, shown after the title)
+ *               "text": ["line 1", "line 2"]
+ *           }
+ *       }
+ *   }
+ * Stat lines in generated tooltips link their name automatically, but only
+ * when an explainer exists for it.
  *
  * ======================================================================================
  * ESCAPE CODES
@@ -215,6 +228,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     const statDmgOutlineColor = 10
     const boldOutlineColor = 12
     const labelOutlineColor = boldOutlineColor
+    const tooltipTextLinkColor = "#efec88"
     /** Windowskin index -> hex color cache (see hexColorMapManager). @type {Map<number, string>} */
     const M_hexColorMap = new Map()
 
@@ -301,6 +315,17 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         return (
             $tooltipData && $tooltipData.states && $tooltipData.states[state.id]
         )
+    }
+
+    /**
+     * @param {string} type - link type, e.g. "PARAM" (see LINK_TOOLTIP_ACCENT_COLORS)
+     * @param {number} id
+     * @returns {{name:string, icon?:number, text:string|string[]}|undefined}
+     *   the entry in $tooltipData.LinkExplainers, if any
+     */
+    function linkExplainerEntry(type, id) {
+        const explainers = $tooltipData && $tooltipData.LinkExplainers
+        return explainers && explainers[type] && explainers[type][id]
     }
 
     /**
@@ -912,6 +937,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         // TOOLTIP LOCK & TOOLTIP LINKS). Added after the main one, so it draws on top.
         scene._tooltipLocked = false
         scene._linkTooltipId = 0
+        scene._linkTooltipType = ""
         scene._linkTooltipAnchor = null
         const linkTooltip = new Window_LinkTooltip()
         linkTooltip.frontSpriteHue = 0
@@ -1510,12 +1536,17 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         const link = hoveredTooltipLink(scene)
         const itemId = link ? link.itemId : 0
         const valueType = link ? link.linkValueType : ""
-        linkTooltip._linkValueType = valueType
         // SWAP -----
         // Same close-then-open as the main tooltip: a change closes the
-        // current one, and the new state opens once openness reaches 0.
-        if (itemId !== scene._linkTooltipId) {
+        // current one, and the new link opens once openness reaches 0.
+        // Ids repeat across types (2PARAM is Atk, 2XPARAM is Crit), so a
+        // change of either counts.
+        if (
+            itemId !== scene._linkTooltipId ||
+            valueType !== scene._linkTooltipType
+        ) {
             scene._linkTooltipId = itemId
+            scene._linkTooltipType = valueType
             scene._linkTooltipAnchor = link
             linkTooltip.tooltipActive = false
         }
@@ -1527,10 +1558,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             positionLinkTooltip(scene, scene._linkTooltipAnchor)
             return
         }
-        const state = $dataStates[itemId]
-        if (!state || linkTooltip.openness > 0) return
-
-        linkTooltip.setupState(state)
+        if (!link || linkTooltip.openness > 0) return
+        if (!linkTooltip.setupLink(valueType, itemId)) return
         linkTooltip.visible = true
         linkTooltip.tooltipActive = true
         // Back on top, in case the main tooltip was re-added after it.
@@ -2443,9 +2472,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this.setBackgroundType(this._background)
     }
 
+    /** Link type (\TLINK[00TYPE]) -> the link tooltip's accent color. */
     const LINK_TOOLTIP_ACCENT_COLORS = new Map([
         ["STATE", "#430e0a"],
         ["PARAM", "#063254"],
+        ["XPARAM", "#063254"],
+        ["SPARAM", "#063254"],
     ])
 
     Window_LinkTooltip.prototype.getAccentColor = function () {
@@ -2532,6 +2564,47 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 text:
                     stateTooltipText(state, null) ||
                     `\x1bST[1]${state.name}\x1bST[0]\x1bI[${state.iconIndex}]`,
+            },
+        ])
+    }
+
+    /**
+     * Builds and renders the tooltip a link points to: a state's own tooltip
+     * for STATE, otherwise its LinkExplainers entry. Sets the link type first,
+     * since rendering draws the accent color (see refreshDimmerBitmap).
+     * @param {string} type - link type, e.g. "STATE" or "PARAM"
+     * @param {number} id
+     * @returns {boolean} false if there's nothing to show (nothing is rendered)
+     */
+    Window_LinkTooltip.prototype.setupLink = function (type, id) {
+        const state = type === "STATE" ? $dataStates[id] : null
+        const explainer = type === "STATE" ? null : linkExplainerEntry(type, id)
+        if (!state && !explainer) return false
+        this._linkValueType = type
+        if (state) this.setupState(state)
+        else this.setupExplainer(explainer)
+        return true
+    }
+
+    /**
+     * Builds and renders a LinkExplainers entry: its name as the title (plus
+     * its icon, if any), then its text lines.
+     * @param {{name:string, icon?:number, text:string|string[]}} explainer
+     */
+    Window_LinkTooltip.prototype.setupExplainer = function (explainer) {
+        this._battler = null
+        this._item = null
+        this._state = null
+        this.updateBackground()
+        const icon = explainer.icon ? `\\I[${explainer.icon}]` : ""
+        const body =
+            Array.isArray(explainer.text) ?
+                explainer.text.join("\n")
+            :   explainer.text || ""
+        this.renderEntries([
+            {
+                state: null,
+                text: `\\ST[1]${explainer.name}\\ST[0]${icon}\\C[${textColor}]\n${body}`,
             },
         ])
     }
@@ -3067,11 +3140,11 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             case 3:
                 return "Crit.Eva"
             case 4:
-                return "M.Eva"
+                return "B.Eva"
             case 5:
-                return "M.Ref"
+                return "B.Ref"
             case 6:
-                return "Counter%"
+                return "Counter"
             case 7:
                 return `HP Regen`
             case 8:
@@ -3331,8 +3404,9 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             if (!value) continue
             const sign = value > 0 ? "+" : ""
             const icon = paramIconMap.get(i)
+            const name = explainerLinkText("PARAM", i, paramNameShort(i))
             lines.push(
-                `\\I[${icon}]\\BS[1]\\IT[1]${paramNameShort(i)}\\BS[0]\\IT[0]\\>\\BS[1]${sign}${value}\\BS[0]`
+                `\\I[${icon}]\\B[1]\\IT[1]${name}\\B[0]\\IT[0]\\>\\BS[1]${sign}${value}\\BS[0]`
             )
         }
 
@@ -3343,6 +3417,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             let percent = 0
             let sign = ""
             let unit = "%"
+            /** LinkExplainers type the name links to (with t.dataId), if any. */
+            let linkType = ""
             if (t.code === Game_BattlerBase.TRAIT_ATTACK_TIMES) {
                 // Flat extra hits, added to the wearer's attack skill only
                 // (see itemRepeats).
@@ -3378,6 +3454,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
                 percent = Math.round(t.value * 100)
                 sign = percent > 0 ? "+" : ""
+                linkType = "SPARAM"
             } else if (t.code === Game_BattlerBase.TRAIT_PARAM) {
                 if (t.value === 0) continue
                 name = paramNameShort(t.dataId)
@@ -3385,6 +3462,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 percent = Math.round(t.value * 100) - 100
                 sign = percent > 0 ? "+" : ""
                 if (!name) continue
+                linkType = "PARAM"
             } else if (t.code === Game_BattlerBase.TRAIT_XPARAM) {
                 if (t.value === 0) continue
                 name = xparamNameShort(t.dataId)
@@ -3392,10 +3470,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 percent = Math.round(t.value * 100)
                 sign = percent > 0 ? "+" : ""
                 if (!name || name === "Hit Rate") continue
+                linkType = "XPARAM"
             } else continue
 
+            if (linkType) name = explainerLinkText(linkType, t.dataId, name)
             lines.push(
-                `\\I[${icon}]\\BS[1]\\IT[1]${name}\\IT[0]\\BS[0]\\>\\BS[1]${sign}${percent}${unit}\\BS[0]`
+                `\\I[${icon}]\\B[1]\\IT[1]${name}\\IT[0]\\B[0]\\>\\BS[1]${sign}${percent}${unit}\\BS[0]`
             )
         }
 
@@ -4083,6 +4163,20 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     }
 
     /**
+     * Wraps text in \TLINK so a locked tooltip can open its LinkExplainers
+     * entry (see TOOLTIP LINKS). Text with no entry stays plain, so a link
+     * never opens nothing.
+     * @param {string} type - link type, e.g. "PARAM"
+     * @param {number} id
+     * @param {string} text
+     * @returns {string}
+     */
+    function explainerLinkText(type, id, text) {
+        if (!linkExplainerEntry(type, id)) return text
+        return `\\TLINK[${id}${type}]\\UL[1]${text}\\UL[0]\\TLINK[0]`
+    }
+
+    /**
      * Formats a merged entry's per-variant values: "30" if they're all equal,
      * otherwise "30/10/5" in label order.
      * @param {*[]} values
@@ -4634,11 +4728,10 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                     resolveTextColor(on ? statColor : textColor)
                 )
                 this.contents.outlineWidth =
-                    on ? BOLD_OUTLINE_WIDTH : NORMAL_OUTLINE_WIDTH
-                this.contents.outlineColor =
-                    on ?
-                        `${hexColorMapManager(boldOutlineColor)}`
-                    :   NORMAL_OUTLINE_COLOR
+                    on ? BOLD_OUTLINE_WIDTH - 1 : NORMAL_OUTLINE_WIDTH
+                this.contents.outlineColor = resolveTextColor(
+                    on ? "#6c6c6c" : textColor
+                )
                 this.contents._context.letterSpacing =
                     on ? BOLD_SPACING_WIDTH : NORMAL_SPACING_WIDTH
                 if (on) {
@@ -4875,7 +4968,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             y - border,
             width, //+ border * 2,
             UNDERLINE_THICKNESS, //+ border * 2,
-            hexColorMapManager(statColor)
+            resolveTextColor(tooltipTextLinkColor)
         )
         // Draw the main outline which is smaller than the outline and sits on top
         this.contents.fillRect(
@@ -4883,7 +4976,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             y,
             width,
             UNDERLINE_THICKNESS,
-            resolveTextColor(boldOutlineColor)
+            resolveTextColor(statColor)
         )
     }
 
@@ -4899,10 +4992,13 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     // closes.
 
     /**
-     * Handles \TLINK[00TEXT]: ends the open link span, if any, and for n > 0 opens
-     * a new one for item n at the current position.
-     * @param {number} itemId - 0 only closes the open span
-     * @param {string} type - link type, e.g. "STATE" (see LINK_TOOLTIP_ACCENT_COLORS)
+     * Handles \TLINK[00TEXT]: ends the open link span, if any, and opens a
+     * new one for item 00 at the current position.
+     * CLOSE BY TYPE -----
+     * Only the untyped \TLINK[0] just closes: 0 is a real id for some types
+     * (0PARAM is Max HP, 0XPARAM is Hit), so the id can't mark the close.
+     * @param {number} itemId
+     * @param {string} type - link type, e.g. "STATE" (see LINK_TOOLTIP_ACCENT_COLORS); "" only closes the open span
      * @param {object} textState
      */
     Window_StateTooltip.prototype.processTooltipLink = function (
@@ -4912,7 +5008,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     ) {
         if (!textState.drawing) return
         this.closeTooltipLinkSpan(textState)
-        if (itemId > 0) textState.tooltipLink = { itemId, type, x: textState.x }
+        if (type) textState.tooltipLink = { itemId, type, x: textState.x }
     }
 
     /**
