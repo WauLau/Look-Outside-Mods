@@ -65,12 +65,12 @@
  *
  * 5.) Locking tooltips (keyboard T):
  * Pressing T while a tooltip is open locks it in place: it stops following
- * the mouse and stays open while the mouse moves over it. Hovering a state
- * name inside it (e.g. "Rage" in a skill's "Grants:" line) then opens that
- * state's own tooltip beside it. Press T again to unlock. A locked tooltip
+ * the mouse and stays open while the mouse moves over it. Hovering a linked
+ * name inside it (e.g. the state "Rage" in a skill's "Grants:" line) then
+ * opens that name's own tooltip beside it. Press T again to unlock. A locked tooltip
  * also unlocks by itself once whatever it belongs to leaves the screen.
  * State names in generated lines are linked automatically; hand-written
- * text can link one with \SL (see below).
+ * text can link one with \TLINK (see below).
  *
  * ======================================================================================
  * ESCAPE CODES
@@ -95,9 +95,10 @@
  *                     list doesn't fit on one line, the label moves to its own
  *                     line and the list wraps item by item, spread evenly
  *                     across the full width.
- *   \SL[id]...\SL[0] - link the text in between to state <id>'s tooltip,
+ *   \TLINK[00TEXT]...\TLINK[0] - Where '00' is the item id and 'TEXT' is the link type.
+ *                     This links the text in between to <id>'s tooltip,
  *                     opened by hovering it while the tooltip is locked,
- *                     e.g. "Grants \SL[7]Rage\SL[0]"
+ *                     e.g. "Grants \TLINK[7STATE]Rage\TLINK[0]"
  *   {expression}    - math on the tooltip's battler, printed as a stat value,
  *                     e.g. {maxhp * 0.1}
  *
@@ -185,12 +186,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     const BOLD_SPACING_WIDTH = "2px"
     const NORMAL_OUTLINE_COLOR = "rgba(0, 0, 0, 0)"
 
-    const TEXT_SIZE_NORMAL = 16
-    const TEXT_SIZE_BOLD = 14
-    const TEXT_SIZE_LABEL = 17
-    const TEXT_SIZE_SUBTITLE = 19
-    const TEXT_SIZE_TITLE = 21
-    const TEXT_SIZE_DESCRIPTION = 14
+    const TEXT_SIZE_NORMAL = 14
+    const TEXT_SIZE_BOLD = 13
+    const TEXT_SIZE_LABEL = 15
+    const TEXT_SIZE_SUBTITLE = 18
+    const TEXT_SIZE_TITLE = 20
+    const TEXT_SIZE_DESCRIPTION = 12
     /** Pixels taken off the gap between tooltip lines (see calcTextHeight). */
     const TOOLTIP_LINE_SPACING_TRIM = 4
     /** Pixels every tooltip line is inset from the contents' left edge, so outlines (bold especially) aren't clipped (see renderEntries). */
@@ -431,7 +432,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                         throw new Error(
                             battler ?
                                 `Enemy Tooltips: Percent Only is ON, but "${expr}" isn't a simple "stat * number" expression, so it can't be converted to a percent - reword this entry`
-                            :   `"${expr}" isn't a simple "stat * number" expression, so it can't be shown without a battler (linked state tooltip) - reword this entry`
+                            :   `"${expr}" isn't a simple "stat * number" expression, so it can't be shown without a battler (linked item tooltip) - reword this entry`
                         )
                     }
                     return `\\BS[1]${percentText}\\BS[0]`
@@ -907,10 +908,10 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         resetGamepadTooltip()
 
         // LINK TOOLTIP -----
-        // Second window for a state hovered inside the locked tooltip (see
-        // TOOLTIP LOCK & STATE LINKS). Added after the main one, so it draws on top.
+        // Second window for an item hovered inside the locked tooltip (see
+        // TOOLTIP LOCK & TOOLTIP LINKS). Added after the main one, so it draws on top.
         scene._tooltipLocked = false
-        scene._linkTooltipStateId = 0
+        scene._linkTooltipId = 0
         scene._linkTooltipAnchor = null
         const linkTooltip = new Window_LinkTooltip()
         linkTooltip.frontSpriteHue = 0
@@ -1403,12 +1404,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     }
 
     //============================================================================//
-    //                        TOOLTIP LOCK & STATE LINKS                          //
+    //                        TOOLTIP LOCK & TOOLTIP LINKS                        //
     //============================================================================//
     // T (see TOOLTIP LOCK KEY) locks an open tooltip: it stops following the
     // cursor and every mouse-hover detector leaves it alone, so the mouse can
-    // move onto it. While locked, hovering a state name drawn inside it (an
-    // \SL span, see processStateLink) opens scene._linkTooltip for that state.
+    // move onto it. While locked, hovering a linked name drawn inside it (a
+    // \TLINK span, see processTooltipLink) opens scene._linkTooltip for that item.
     // T again (or cancel / a click outside it, see LOCK DISMISS INPUT)
     // unlocks; the detectors then pick up wherever the mouse is, so
     // the tooltip closes unless the mouse is back on what opened it.
@@ -1475,12 +1476,12 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     }
 
     /**
-     * The \SL rect in the locked tooltip the mouse is over.
+     * The \TLINK rect in the locked tooltip the mouse is over.
      * @param {Scene_Base} scene
-     * @returns {{stateId:number,x:number,y:number,width:number,height:number}|null}
+     * @returns {{itemId:number,linkValueType:string,x:number,y:number,width:number,height:number}|null}
      *   rect in the main tooltip's contents space, or null
      */
-    function hoveredStateLink(scene) {
+    function hoveredTooltipLink(scene) {
         const tooltip = scene._stateTooltip
         if (!scene._tooltipLocked || !isMouseInUse() || !tooltip.isOpen()) {
             return null
@@ -1489,7 +1490,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         const localPos =
             tooltip._contentsSprite.worldTransform.applyInverse(touchPos)
         return (
-            tooltip._stateLinkRects.find(
+            tooltip._tooltipLinkRects.find(
                 (rect) =>
                     localPos.x >= rect.x &&
                     localPos.x < rect.x + rect.width &&
@@ -1500,19 +1501,21 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     }
 
     /**
-     * Per-frame: shows the hovered state link's tooltip, closing the current
-     * one first when the hovered state changes (or nothing is hovered).
+     * Per-frame: shows the hovered tooltip link's tooltip, closing the current
+     * one first when the hovered link changes (or nothing is hovered).
      * @param {Scene_Base} scene
      */
     function updateLinkTooltip(scene) {
         const linkTooltip = scene._linkTooltip
-        const link = hoveredStateLink(scene)
-        const stateId = link ? link.stateId : 0
+        const link = hoveredTooltipLink(scene)
+        const itemId = link ? link.itemId : 0
+        const valueType = link ? link.linkValueType : ""
+        linkTooltip._linkValueType = valueType
         // SWAP -----
         // Same close-then-open as the main tooltip: a change closes the
         // current one, and the new state opens once openness reaches 0.
-        if (stateId !== scene._linkTooltipStateId) {
-            scene._linkTooltipStateId = stateId
+        if (itemId !== scene._linkTooltipId) {
+            scene._linkTooltipId = itemId
             scene._linkTooltipAnchor = link
             linkTooltip.tooltipActive = false
         }
@@ -1524,8 +1527,9 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             positionLinkTooltip(scene, scene._linkTooltipAnchor)
             return
         }
-        const state = $dataStates[stateId]
+        const state = $dataStates[itemId]
         if (!state || linkTooltip.openness > 0) return
+
         linkTooltip.setupState(state)
         linkTooltip.visible = true
         linkTooltip.tooltipActive = true
@@ -2172,6 +2176,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this.frontSpriteHue = 0
         this.backSpriteHue = 0
         this.backSpriteOpacity = 255
+        this._linkValueType = ""
         /** Widest a line may get before wrapping; per-window so the shop window can differ. */
         this._maxTextWidth = maxTooltipWidth
         /** Pixels taken off every line's spacing (see calcTextHeight); per-window so the shop window can keep matching the message window. */
@@ -2187,8 +2192,8 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         this._typewriterQueue = []
         /** @type {object|null} textState of the entry currently being typed */
         this._typewriterState = null
-        /** @type {{stateId:number, x:number, y:number, width:number, height:number}[]} drawn \SL spans, contents space (see processStateLink) */
-        this._stateLinkRects = []
+        /** @type {{itemId:number, linkValueType:string, x:number, y:number, width:number, height:number}[]} drawn \TLINK spans, contents space (see processTooltipLink) */
+        this._tooltipLinkRects = []
     }
     // FADE DIRECTION -----
     // tooltipActive (what the tooltip should be doing) picks the direction;
@@ -2419,7 +2424,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
     Window_LinkTooltip.prototype.renderEntries = function (rawEntries) {
         Window_StateTooltip.prototype.renderEntries.call(this, rawEntries)
-        //this.showBackgroundDimmer()
+        this.showBackgroundDimmer()
         // APPEND, DON'T REPLACE -----
         // Sprite.setHue keeps its own ColorFilter in the same list, so the
         // B/W filter goes after it (the hue shift runs first, then flattens).
@@ -2430,42 +2435,66 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             }
         }
     }
-    Window_StateTooltip.prototype.updateBackground = function () {
-        this._background = 0
-        this._backSprite.alpha = 1
-        this._frameSprite.alpha = 1
+
+    Window_LinkTooltip.prototype.updateBackground = function () {
+        this._background = 1
+        this._backSprite.alpha = 0
+        this._frameSprite.alpha = 0
         this.setBackgroundType(this._background)
     }
 
-    Window_StateTooltip.prototype.refreshDimmerBitmap = function () {
+    const LINK_TOOLTIP_ACCENT_COLORS = new Map([
+        ["STATE", "#430e0a"],
+        ["PARAM", "#063254"],
+    ])
+
+    Window_LinkTooltip.prototype.getAccentColor = function () {
+        return (
+            LINK_TOOLTIP_ACCENT_COLORS.get(this._linkValueType.toUpperCase()) ??
+            "#290654"
+        )
+    }
+    const BLOCK_BORDER_WIDTH = 6
+    const ACCENT_BLOCK_HEIGHT = 50
+    Window_LinkTooltip.prototype.refreshDimmerBitmap = function () {
         if (this._dimmerSprite) {
             const bitmap = this._dimmerSprite.bitmap
             const w = this.width > 0 ? this.width + 8 : 0
             const h = this.height
-            const border = this.padding
-            const borderCol = "#942C40"
-            const fillCol = "#231521c7"
+            const baseColor = "rgb(0, 0, 0)"
+            const border = BLOCK_BORDER_WIDTH
+            const accentColor = this.getAccentColor()
             bitmap.resize(w, h)
-            bitmap.strokeBorder(0, 0, w, h, borderCol, border)
-            bitmap.fillRect(
+            bitmap.fillRect(0, 0, w, border, accentColor)
+            bitmap.gradientFillRect(
+                0,
                 border,
-                border,
-                w - border * 2,
-                h - border * 2,
-                fillCol
+                w,
+                ACCENT_BLOCK_HEIGHT,
+                accentColor,
+                baseColor,
+                true
             )
+            bitmap.fillRect(
+                0,
+                ACCENT_BLOCK_HEIGHT + border,
+                w,
+                Math.max(h - ACCENT_BLOCK_HEIGHT - border, 0),
+                baseColor
+            )
+            bitmap.strokeBorder(0, 0, w, h, accentColor, border)
             this._dimmerSprite.setFrame(0, 0, w, h)
         }
     }
 
     /**
-     * Draws the specified rectangular frame.
+     * Draws the specified rectangular border frame.
      *
      * @param {number} x - The x coordinate for the upper-left corner.
      * @param {number} y - The y coordinate for the upper-left corner.
-     * @param {number} width - The width of the rectangle to fill.
-     * @param {number} height - The height of the rectangle to fill.
-     * @param {string} color - The color of the rectangle in CSS format.
+     * @param {number} width - The width of the rectangle.
+     * @param {number} height - The height of the rectangle.
+     * @param {string} color - The color of the border in CSS format.
      * @param {number} [borderWidth = 1] - The Width of the border
      */
     Bitmap.prototype.strokeBorder = function (
@@ -2765,7 +2794,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
 
         this._typewriterQueue = []
         this._typewriterState = null
-        this._stateLinkRects = []
+        this._tooltipLinkRects = []
         let y = 0
         for (const entry of entries) {
             if (entry.face) this.drawTooltipPortrait(entry.face, left, y)
@@ -3993,7 +4022,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * @param {{mergeAll?: boolean}} [options]
      * @returns {{state: RPG.State, name: string, value: *, values: *[]}[]}
      *   value is the lowest variant's value; values has one per variant;
-     *   name is wrapped in a state link (see stateLinkText)
+     *   name is wrapped in a STATE \TLINK (see tooltipLinkText)
      */
     function mergeStateVariations(entries, { mergeAll = false } = {}) {
         const merged = []
@@ -4036,21 +4065,21 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 :   `${variants[0].group} ${variants.map((v) => v.label).join(",")}`
         }
         for (const entry of merged) {
-            entry.name = stateLinkText(entry.state, entry.name)
+            entry.name = tooltipLinkText(entry.state, entry.name)
         }
         return merged
     }
 
     /**
-     * Wraps text in \SL so a locked tooltip can open the state's own tooltip
-     * from it (see STATE LINKS). Hidden states stay plain text.
+     * Wraps text in \TLINK so a locked tooltip can open the state's own tooltip
+     * from it (see TOOLTIP LINKS). Hidden states stay plain text.
      * @param {RPG.State} state
      * @param {string} text
      * @returns {string}
      */
-    function stateLinkText(state, text) {
+    function tooltipLinkText(state, text) {
         if (isStateTooltipHidden(state)) return text
-        return `\\SL[${state.id}]\\UL[1]${text}\\UL[0]\\SL[0]`
+        return `\\TLINK[${state.id}STATE]\\UL[1]${text}\\UL[0]\\TLINK[0]`
     }
 
     /**
@@ -4441,7 +4470,7 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
             t = t.replace(/\x1bSR/gi, stepsRemain)
         } else if (this._state) {
             // BASE DURATION -----
-            // No battler (a linked state, see setupState): shows how long
+            // No battler (a linked item, see setupState): shows how long
             // the state lasts once applied, instead of what's left.
             const state = this._state
             const turns =
@@ -4497,11 +4526,35 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     function resolveTextColor(value) {
         return typeof value === "string" ? value : hexColorMapManager(value)
     }
+
+    /**
+     * Digits and Text Object
+     * @typedef {Object} ExtendedEscapeCharacterReturnObject
+     * @property {number} digits - Digits from escape character
+     * @property {string} text - text from escape character
+     */
+
+    /**
+     * Reads escape characters that have numbers followed by a string and returns them
+     * as an object. Escape characters must be formatted as [00TEXT]
+     * where '00' are digits and 'TEXT' is a-zA-Z.
+     * @param {TextState} textState
+     * @returns {ExtendedEscapeCharacterReturnObject} .digits & .text
+     */
+    Window_Base.prototype.obtainExtendedEscapeParam = function (textState) {
+        const arr = /^\[(\d+)([A-Za-z]\w*)?\]/.exec(
+            textState.text.slice(textState.index)
+        )
+        if (!arr) return { digits: 0, text: "" }
+        textState.index += arr[0].length
+        return { digits: parseInt(arr[1]), text: (arr[2] || "").toUpperCase() }
+    }
+
     /**
      * This plugin's escape codes on top of the engine's: the [1]/[0] style
      * toggles \BI, \BS, \BSD, \B (bold variants), \IT (italic), \LB (label),
      * \ST (subtitle), \TI (title), \DE (description), plus \> (right-align),
-     * \JU/\JG (justified lists), \SL (state links) and text-sized icons \I/\J.
+     * \JU/\JG (justified lists), \TLINK (tooltip links) and text-sized icons \I/\J.
      * @param {string} code
      * @param {object} textState
      */
@@ -4682,11 +4735,9 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
                 this.processJustifyGap(textState)
                 break
             }
-            case "SL": {
-                this.processStateLink(
-                    Number(this.obtainEscapeParam(textState)) || 0,
-                    textState
-                )
+            case "TLINK": {
+                const obj = this.obtainExtendedEscapeParam(textState)
+                this.processTooltipLink(obj.digits, obj.text, textState)
                 break
             }
             // Handled here instead of in default, which resets the font -
@@ -4836,10 +4887,10 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         )
     }
 
-    // STATE LINKS (\SL) -----------------------------
-    // \SL[stateId] ... \SL[0] marks text as a link to that state's tooltip
-    // (see TOOLTIP LOCK & STATE LINKS). The drawing pass records each span's
-    // rect, in contents space, into _stateLinkRects; a span that wraps onto
+    // TOOLTIP LINKS (\TLINK) -----------------------------
+    // \TLINK[00TEXT] ... \TLINK[0] marks text as a link to id 00's tooltip of
+    // link type TEXT (see TOOLTIP LOCK & TOOLTIP LINKS). The drawing pass records each span's
+    // rect, in contents space, into _tooltipLinkRects; a span that wraps onto
     // the next line is split into one rect per line. Measuring passes treat
     // it as zero-width and record nothing.
     // FLUSH ORDER -----
@@ -4848,18 +4899,20 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
     // closes.
 
     /**
-     * Handles \SL[n]: ends the open link span, if any, and for n > 0 opens
-     * a new one for state n at the current position.
-     * @param {number} stateId
+     * Handles \TLINK[00TEXT]: ends the open link span, if any, and for n > 0 opens
+     * a new one for item n at the current position.
+     * @param {number} itemId - 0 only closes the open span
+     * @param {string} type - link type, e.g. "STATE" (see LINK_TOOLTIP_ACCENT_COLORS)
      * @param {object} textState
      */
-    Window_StateTooltip.prototype.processStateLink = function (
-        stateId,
+    Window_StateTooltip.prototype.processTooltipLink = function (
+        itemId,
+        type,
         textState
     ) {
         if (!textState.drawing) return
-        this.closeStateLinkSpan(textState)
-        if (stateId > 0) textState.stateLink = { stateId, x: textState.x }
+        this.closeTooltipLinkSpan(textState)
+        if (itemId > 0) textState.tooltipLink = { itemId, type, x: textState.x }
     }
 
     /**
@@ -4867,13 +4920,14 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
      * x on the current line, and closes it.
      * @param {object} textState
      */
-    Window_StateTooltip.prototype.closeStateLinkSpan = function (textState) {
-        const link = textState.drawing && textState.stateLink
+    Window_StateTooltip.prototype.closeTooltipLinkSpan = function (textState) {
+        const link = textState.drawing && textState.tooltipLink
         if (!link) return
-        textState.stateLink = null
+        textState.tooltipLink = null
         if (textState.x <= link.x) return
-        this._stateLinkRects.push({
-            stateId: link.stateId,
+        this._tooltipLinkRects.push({
+            itemId: link.itemId,
+            linkValueType: link.type,
             x: link.x,
             y: textState.y,
             width: textState.x - link.x,
@@ -4881,13 +4935,17 @@ DataManager.loadDataFile("$tooltipData", "WauLau_TooltipData.json")
         })
     }
 
-    /** Splits an open \SL span at a line break, so each line gets its own rect. */
+    /** Splits an open \TLINK span at a line break, so each line gets its own rect. */
     Window_StateTooltip.prototype.processNewLine = function (textState) {
-        const link = textState.drawing && textState.stateLink
-        this.closeStateLinkSpan(textState)
+        const link = textState.drawing && textState.tooltipLink
+        this.closeTooltipLinkSpan(textState)
         Window_Selectable.prototype.processNewLine.call(this, textState)
         if (link)
-            textState.stateLink = { stateId: link.stateId, x: textState.x }
+            textState.tooltipLink = {
+                itemId: link.itemId,
+                type: link.type,
+                x: textState.x,
+            }
     }
 
     // RIGHT-ALIGN (\>) -----------------------------

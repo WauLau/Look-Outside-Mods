@@ -67,6 +67,13 @@ Lookup tables for this cross-checking live in `Rmmz References/`: `code-lookup.m
 Hand-written tooltip text for `WauLau_LookAtTooltips`. **Edit the work copy at the repo root**, not `LookOutsidePluginMods/data/` — any change under `data/` makes the open RPG Maker editor reload. The user copies it into `data/` when done.
 Sections: `states` (`{name, text: [...], hide?}`), and `items`/`weapons`/`armors`/`skills` (every key is shown as tooltip lines; `_`-prefixed keys like `_name` are editor labels and ignored).
 
+### Tooltip links (`\TLINK`, `WauLau_LookAtTooltips`)
+
+- `\TLINK[<id><TYPE>]…\TLINK[0]` (e.g. `\TLINK[7STATE]Rage\TLINK[0]`) makes text hoverable while the main tooltip is locked (T), opening `Window_LinkTooltip` (`scene._linkTooltip`). Parsed by `Window_Base.prototype.obtainExtendedEscapeParam` → `{digits, text}` (TYPE upper-cased). The engine's `obtainEscapeCode` matches `[A-Z]+`, so multi-letter codes like `TLINK` are fine.
+- The type is renamed at each hop: escape param `.text` → open span `textState.tooltipLink.type` → `_tooltipLinkRects[].linkValueType` → `Window_LinkTooltip._linkValueType`. Keep every hop (and the rect `@type` JSDoc) in sync — a mismatched key fails silently as `undefined`.
+- Set `_linkValueType` _before_ `setupState`: it renders and draws the dimmer bitmap (accent from `LINK_TOOLTIP_ACCENT_COLORS`) immediately.
+- Only `STATE` is implemented: `updateLinkTooltip` always looks up `$dataStates[itemId]`, and its swap check compares the id only, not the type.
+
 ### Verifying plugin JS edits
 
 There's no build step, but `node --check js/plugins/<File>.js` still catches syntax errors before playtesting — run it after every edit to a plugin file.
